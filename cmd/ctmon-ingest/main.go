@@ -90,6 +90,7 @@ const (
 	dbBatchSize           = 2000             // Number of entries to batch for database insertion
 	dbBatchTimeout        = 5 * time.Second  // Max time to wait before flushing a partial batch
 	logChannelBuffer      = 5000             // Buffer size for the log entry channel
+	pollingInterval       = 5 * time.Second  // Interval to poll when log reaches its end
 )
 
 // CircuitBreaker tracks database connection health
@@ -135,11 +136,21 @@ func isRetryableError(err error) bool {
 		strings.Contains(errorStr, "connection reset") ||
 		strings.Contains(errorStr, "temporary failure") ||
 		strings.Contains(errorStr, "i/o timeout") ||
-		strings.Contains(errorStr, "network is unreachable")
+		strings.Contains(errorStr, "network is unreachable") ||
+		strings.Contains(errorStr, "context deadline exceeded") ||
+		strings.HasPrefix(errorStr, "retryable http error ")
 }
 
 func isRetryableHTTPStatus(statusCode int) bool {
 	return statusCode >= 500 || statusCode == 429 || statusCode == 408
+}
+
+func isEndOfLogError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errorStr := err.Error()
+	return strings.Contains(errorStr, "400 Bad Request")
 }
 
 func fetchSTH(client *http.Client, logURL string) (*STHResponse, error) {
@@ -198,7 +209,11 @@ func fetchEntriesWithRetry(client *http.Client, logURL string, start, end int64)
 			break
 		}
 
-		// Check if error is retryable
+		// Check if error is retryable or end-of-log condition
+		if isEndOfLogError(err) {
+			// This is end-of-log, don't retry but return special error type
+			return nil, fmt.Errorf("end_of_log: %w", err)
+		}
 		if !isRetryableError(err) {
 			log.Printf("Non-retryable error, giving up: %v", err)
 			break
@@ -415,7 +430,8 @@ func isRetryableDBError(err error) bool {
 		strings.Contains(errorStr, "broken pipe") ||
 		strings.Contains(errorStr, "connection lost") ||
 		strings.Contains(errorStr, "server is not ready") ||
-		strings.Contains(errorStr, "too many connections")
+		strings.Contains(errorStr, "too many connections") ||
+		strings.Contains(errorStr, "context deadline exceeded")
 }
 
 func boolToUint8(b bool) uint8 {
@@ -782,14 +798,21 @@ func main() {
 			log.Printf("Fetching entries from %s: %d to %d (batch size %d)", logID, currentIndex, endIndex, currentBatchSize)
 
 			getEntriesResp, err := fetchEntriesWithRetry(client, *logURLFlag, currentIndex, endIndex)
-			if err != nil {
+			if err != nil || len(getEntriesResp.Entries) == 0 {
+				// Check if this is an end-of-log condition
+				if (getEntriesResp != nil && len(getEntriesResp.Entries) == 0) || strings.Contains(err.Error(), "end_of_log:") {
+					log.Printf("Reached end of log at index %d. Polling every %v for new entries...", currentIndex, pollingInterval)
+					// Wait and then continue the loop to try again
+					select {
+					case <-time.After(pollingInterval):
+						continue
+					case <-done:
+						log.Printf("Received shutdown signal during polling, stopping...")
+						return
+					}
+				}
 				log.Printf("Error fetching entries %d-%d after all retries: %v", currentIndex, endIndex, err)
 				// On fetch error, we'll stop the main loop
-				return
-			}
-
-			if len(getEntriesResp.Entries) == 0 {
-				log.Printf("No more entries returned by log at index %d. Stopping.", currentIndex)
 				return
 			}
 
