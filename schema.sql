@@ -41,7 +41,7 @@ CREATE TABLE ct_log_entries
     issuer_province Array(String) COMMENT 'Issuer State/Province (ST)',
 
     -- Other Key Parsed Certificate Fields
-    serial_number String COMMENT 'Certificate serial number (hex or decimal string representation)',
+    serial_number String COMMENT 'Certificate serial number (hex string)',
     subject_alternative_names Array(String) COMMENT 'Array of Subject Alternative Names (DNS, IP, etc.)',
     signature_algorithm LowCardinality(String) COMMENT 'Signature algorithm of the certificate',
     subject_public_key_algorithm LowCardinality(String) COMMENT 'Algorithm of the subject public key',
