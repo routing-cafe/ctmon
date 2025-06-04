@@ -52,6 +52,9 @@ COPY ui/ ./
 # Build the application
 RUN npm run build
 
+# Ensure public directory exists (Next.js may not create it if empty)
+RUN mkdir -p /app/public
+
 # UI runtime stage
 FROM node:20-alpine AS ui
 
@@ -60,6 +63,8 @@ WORKDIR /app
 # Copy built application
 COPY --from=ui-builder /app/.next/standalone ./
 COPY --from=ui-builder /app/.next/static ./.next/static
+
+# Copy public directory
 COPY --from=ui-builder /app/public ./public
 
 # Expose port
