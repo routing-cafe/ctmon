@@ -125,26 +125,6 @@ func (cb *CircuitBreaker) recordFailure() {
 	}
 }
 
-func isRetryableError(err error) bool {
-	if err == nil {
-		return false
-	}
-	// Check for network-related errors that are worth retrying
-	errorStr := err.Error()
-	return strings.Contains(errorStr, "timeout") ||
-		strings.Contains(errorStr, "connection refused") ||
-		strings.Contains(errorStr, "connection reset") ||
-		strings.Contains(errorStr, "temporary failure") ||
-		strings.Contains(errorStr, "i/o timeout") ||
-		strings.Contains(errorStr, "network is unreachable") ||
-		strings.Contains(errorStr, "context deadline exceeded") ||
-		strings.HasPrefix(errorStr, "retryable http error ")
-}
-
-func isRetryableHTTPStatus(statusCode int) bool {
-	return statusCode >= 500 || statusCode == 429 || statusCode == 408
-}
-
 func isEndOfLogError(err error) bool {
 	if err == nil {
 		return false
@@ -214,10 +194,6 @@ func fetchEntriesWithRetry(client *http.Client, logURL string, start, end int64)
 			// This is end-of-log, don't retry but return special error type
 			return nil, fmt.Errorf("end_of_log: %w", err)
 		}
-		if !isRetryableError(err) {
-			log.Printf("Non-retryable error, giving up: %v", err)
-			break
-		}
 
 		// Calculate and apply backoff delay
 		delay := calculateBackoffDelay(attempt)
@@ -250,9 +226,6 @@ func fetchEntries(client *http.Client, logURL string, start, end int64) (*GetEnt
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		if isRetryableHTTPStatus(resp.StatusCode) {
-			return nil, fmt.Errorf("retryable http error %s: %s", resp.Status, string(bodyBytes))
-		}
 		return nil, fmt.Errorf("http request failed with status %s: %s", resp.Status, string(bodyBytes))
 	}
 
@@ -417,23 +390,6 @@ func initClickHouse() (*sql.DB, error) {
 	return conn, nil
 }
 
-func isRetryableDBError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errorStr := err.Error()
-	// ClickHouse specific retryable errors
-	return strings.Contains(errorStr, "connection refused") ||
-		strings.Contains(errorStr, "connection reset") ||
-		strings.Contains(errorStr, "timeout") ||
-		strings.Contains(errorStr, "network is unreachable") ||
-		strings.Contains(errorStr, "broken pipe") ||
-		strings.Contains(errorStr, "connection lost") ||
-		strings.Contains(errorStr, "server is not ready") ||
-		strings.Contains(errorStr, "too many connections") ||
-		strings.Contains(errorStr, "context deadline exceeded")
-}
-
 func boolToUint8(b bool) uint8 {
 	if b {
 		return 1
@@ -523,11 +479,6 @@ func ingestBatchWithRetry(db *sql.DB, batch []*CertificateDetails, cb *CircuitBr
 			attempt+1, maxRetries+1, len(batch), err)
 
 		if attempt == maxRetries {
-			break
-		}
-
-		if !isRetryableDBError(err) {
-			log.Printf("Non-retryable database error, giving up: %v", err)
 			break
 		}
 
@@ -655,12 +606,6 @@ func getLatestLogIndexWithRetry(db *sql.DB, logID string, cb *CircuitBreaker) (i
 
 		// Don't retry on the last attempt
 		if attempt == maxRetries {
-			break
-		}
-
-		// Check if error is retryable
-		if !isRetryableDBError(err) {
-			log.Printf("Non-retryable database error, giving up: %v", err)
 			break
 		}
 
