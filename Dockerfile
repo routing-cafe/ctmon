@@ -1,4 +1,4 @@
-# Build stage
+# Go backend build stage
 FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
@@ -18,7 +18,7 @@ COPY . .
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ctmon-ingest ./cmd/ctmon-ingest
 
-# Runtime stage
+# Go backend runtime stage
 FROM alpine:latest AS ctmon_ingest
 
 # Install ca-certificates for HTTPS requests
@@ -34,3 +34,41 @@ EXPOSE 8080
 
 # Run the binary
 CMD ["./ctmon-ingest"]
+
+# UI build stage
+FROM node:20-alpine AS ui-builder
+
+WORKDIR /app
+
+# Copy package files
+COPY ui/package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy UI source code
+COPY ui/ ./
+
+# Build the application
+RUN npm run build
+
+# UI runtime stage
+FROM node:20-alpine AS ui
+
+WORKDIR /app
+
+# Copy built application
+COPY --from=ui-builder /app/.next/standalone ./
+COPY --from=ui-builder /app/.next/static ./.next/static
+COPY --from=ui-builder /app/public ./public
+
+# Expose port
+EXPOSE 3000
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+
+# Run the application
+CMD ["node", "server.js"]

@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and Push Docker Images
 
 on:
   push:
@@ -8,15 +8,12 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/ctmon-ingest
+  BACKEND_IMAGE_NAME: ${{ github.repository }}/ctmon-ingest
+  UI_IMAGE_NAME: ${{ github.repository }}/ctmon-ui
 
 jobs:
-  build-and-push:
+  test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -26,8 +23,35 @@ jobs:
       with:
         go-version: '1.23'
 
-    - name: Run tests
+    - name: Run Go tests
       run: go test -v ./...
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: ui/package-lock.json
+
+    - name: Install UI dependencies
+      run: cd ui && npm ci
+
+    - name: Run UI linting
+      run: cd ui && npm run lint
+
+    - name: Build UI
+      run: cd ui && npm run build
+
+  build-and-push-backend:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
     - name: Log in to Container Registry
       uses: docker/login-action@v3
@@ -36,22 +60,60 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extract metadata
-      id: meta
+    - name: Extract backend metadata
+      id: meta-backend
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
           type=sha
           type=raw,value=latest,enable={{is_default_branch}}
 
-    - name: Build and push Docker image
+    - name: Build and push backend Docker image
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        tags: ${{ steps.meta-backend.outputs.tags }}
+        labels: ${{ steps.meta-backend.outputs.labels }}
         target: ctmon_ingest
+
+  build-and-push-ui:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract UI metadata
+      id: meta-ui
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.UI_IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push UI Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta-ui.outputs.tags }}
+        labels: ${{ steps.meta-ui.outputs.labels }}
+        target: ui
