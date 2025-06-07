@@ -43,14 +43,6 @@ CREATE TABLE ct_log_entries
     -- Other Key Parsed Certificate Fields
     serial_number String COMMENT 'Certificate serial number (hex string)',
     subject_alternative_names Array(String) COMMENT 'Array of Subject Alternative Names (DNS, IP, etc.)',
-    name_suffixes Array(String) MATERIALIZED arrayDistinct(
-        arrayFlatten(
-            arrayMap(x -> arrayMap(
-                i -> substring(x, i), arrayFilter(i -> i > 0, arrayMap(pos -> position(x, '.', pos), range(1, length(x) + 1)))
-            ),
-            arrayConcat(subject_alternative_names, [subject_common_name])
-        ))
-    ) COMMENT 'All domain suffixes from subject_alternative_names and subject_common_name (e.g., .example.com, .com)',
     signature_algorithm LowCardinality(String) COMMENT 'Signature algorithm of the certificate',
     subject_public_key_algorithm LowCardinality(String) COMMENT 'Algorithm of the subject public key',
     subject_public_key_length UInt16 COMMENT 'Length of the subject public key (e.g., 2048, 256)',
@@ -93,8 +85,7 @@ CREATE TABLE ct_log_entries
     INDEX idx_sans subject_alternative_names TYPE bloom_filter GRANULARITY 4, -- For has(subject_alternative_names, 'value')
     INDEX idx_serial serial_number TYPE bloom_filter GRANULARITY 1,
     INDEX idx_not_after not_after TYPE minmax,
-    INDEX idx_entry_timestamp entry_timestamp TYPE minmax,
-    INDEX idx_name_suffixes name_suffixes TYPE bloom_filter GRANULARITY 4 -- For has(name_suffixes, 'value')
+    INDEX idx_entry_timestamp entry_timestamp TYPE minmax
 )
 ENGINE = ReplacingMergeTree()
 PARTITION BY toYYYYMM(not_after) -- Partition by month of certificate expiry
