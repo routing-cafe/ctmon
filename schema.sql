@@ -100,3 +100,27 @@ ENGINE = ReplacingMergeTree()
 PARTITION BY toYYYYMM(not_after) -- Partition by month of certificate expiry
 ORDER BY (log_id, log_index) -- Primary sorting order
 SETTINGS storage_policy = 's3_policy', index_granularity = 8192;
+
+CREATE TABLE ct_log_entries_by_name
+(
+    name_rev String,
+    log_id LowCardinality(String),
+    log_index UInt64
+)
+ENGINE = ReplacingMergeTree()
+ORDER BY (name_rev, log_id, log_index)
+SETTINGS storage_policy = 's3_policy', index_granularity = 8192;
+
+CREATE MATERIALIZED VIEW ct_log_entries_by_name_mv TO ct_log_entries_by_name AS
+SELECT 
+    reverse(name) AS name_rev,
+    log_id,
+    log_index
+FROM ct_log_entries
+ARRAY JOIN arrayDistinct(
+    arrayConcat(
+        subject_alternative_names,
+        [subject_common_name]
+    )
+) AS name
+WHERE name != '';

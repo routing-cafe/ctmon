@@ -34,11 +34,13 @@ async function getSearchResults(
     switch (queryType) {
       case "domain":
         whereClause = `(
-            subject_common_name = {query:String} OR
-            has(subject_alternative_names, {query:String}) OR
-            has(name_suffixes, {suffix:String})
+            (log_id, log_index) IN (
+              SELECT log_id, log_index FROM ct_log_entries_by_name
+              WHERE name_rev = reverse({query:String}) OR
+                    name_rev LIKE reverse({wildcard:String})
+            )
           )`;
-        additionalParams.suffix = `.${query}`;
+        additionalParams.wildcard = `%.${query}`;
         break;
       case "commonName":
         whereClause = "subject_common_name = {query:String}";
@@ -53,8 +55,7 @@ async function getSearchResults(
         whereClause = "issuer_common_name = {query:String}";
         break;
       default:
-        whereClause =
-          "has(subject_alternative_names, {query:String}) OR subject_common_name = {query:String}";
+        throw new Error(`Unsupported query type: ${queryType}`);
     }
 
     const sql = `
@@ -74,6 +75,7 @@ async function getSearchResults(
       AND entry_type = 'x509_entry'
       ORDER BY not_after DESC 
       LIMIT {limit:UInt32}
+      SETTINGS max_execution_time = 30, max_memory_usage = 134217728
     `;
 
     const resultSet = await client.query({
