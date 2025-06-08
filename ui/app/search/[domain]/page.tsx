@@ -75,7 +75,7 @@ async function getSearchResults(
       AND entry_type = 'x509_entry'
       ORDER BY not_after DESC 
       LIMIT {limit:UInt32}
-      SETTINGS max_execution_time = 30, max_memory_usage = 134217728
+      SETTINGS max_execution_time = 30, max_threads = 1, max_memory_usage = 134217728
     `;
 
     const resultSet = await client.query({

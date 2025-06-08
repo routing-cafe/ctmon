@@ -6,8 +6,8 @@ CREATE TABLE ct_log_entries
     retrieval_timestamp DateTime DEFAULT now() COMMENT 'Timestamp when the entry was fetched and ingested into ClickHouse',
 
     -- Raw CT Log Data (as returned by the get-entries endpoint)
-    leaf_input String COMMENT 'Base64 encoded MerkleTreeLeaf structure from the log entry',
-    extra_data String COMMENT 'Base64 encoded extra data from the log entry (e.g., certificate chain)',
+    leaf_input String COMMENT 'Base64 encoded MerkleTreeLeaf structure from the log entry' CODEC(ZSTD(1)),
+    extra_data String DEFAULT '' COMMENT 'Base64 encoded extra data from the log entry (e.g., certificate chain)',
 
     -- Parsed from MerkleTreeLeaf -> TimestampedEntry
     entry_timestamp DateTime COMMENT 'Timestamp from the TimestampedEntry (milliseconds since epoch, converted to DateTime)',
@@ -64,7 +64,7 @@ CREATE TABLE ct_log_entries
     precert_poison_extension_present UInt8 DEFAULT 0 COMMENT 'Boolean (0 or 1) indicating if the X.509v3 Precertificate Poison extension is present',
 
     -- Stored Raw Certificate (optional, for full reprocessing capability)
-    raw_leaf_certificate_der String COMMENT 'Base64 encoded DER of the leaf certificate itself (extracted from leaf_input)',
+    raw_leaf_certificate_der String DEFAULT '' COMMENT 'Base64 encoded DER of the leaf certificate itself (extracted from leaf_input)',
 
     -- PROJECTION for SAN lookups (optional, for performance)
     -- PROJECTION san_projection (

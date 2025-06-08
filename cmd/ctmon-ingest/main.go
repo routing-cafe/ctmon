@@ -411,11 +411,11 @@ func ingestBatch(db *sql.DB, batch []*CertificateDetails) error {
 
 	query := `
 		INSERT INTO ct_log_entries (
-			log_id, log_index, retrieval_timestamp, leaf_input, extra_data,
+			log_id, log_index, retrieval_timestamp, leaf_input,
 			entry_timestamp, entry_type, certificate_sha256, tbs_certificate_sha256,
 			not_before, not_after, subject_common_name, subject_organization, 
 			subject_alternative_names, issuer_common_name, issuer_organization,
-			serial_number, is_ca, precert_issuer_key_hash, raw_leaf_certificate_der
+			serial_number, is_ca, precert_issuer_key_hash 
 		) VALUES
 	`
 
@@ -423,13 +423,12 @@ func ingestBatch(db *sql.DB, batch []*CertificateDetails) error {
 	var args []interface{}
 
 	for _, details := range batch {
-		values = append(values, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+		values = append(values, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 		args = append(args,
 			details.LogID,
 			details.LogIndex,
 			details.RetrievalTimestamp,
 			details.LeafInputBase64,
-			details.ExtraDataBase64,
 			details.EntryTimestamp,
 			details.EntryType,
 			details.CertificateSHA256,
@@ -444,7 +443,6 @@ func ingestBatch(db *sql.DB, batch []*CertificateDetails) error {
 			details.SerialNumber,
 			boolToUint8(details.IsCA),
 			nullableString(details.PrecertIssuerKeyHash),
-			details.RawLeafCertificateDERBase64,
 		)
 	}
 
