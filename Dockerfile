@@ -17,6 +17,7 @@ COPY . .
 
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ctmon-ingest ./cmd/ctmon-ingest
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o sigstore-ingest ./cmd/sigstore-ingest
 
 # Go ingest runtime stage
 FROM alpine:latest AS ctmon_ingest
