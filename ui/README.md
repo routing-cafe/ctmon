@@ -1,14 +1,27 @@
-# Certificate Transparency Monitor
+# Transparency Search
 
-A web application for searching and monitoring SSL/TLS certificates from Certificate Transparency logs, similar to crt.sh. Built with Next.js and ClickHouse.
+A web application for searching and monitoring transparency data from Certificate Transparency logs and Sigstore Rekor logs. Built with Next.js and ClickHouse.
 
 ## Features
 
+### Certificate Transparency
 - **Multi-type Search**: Search certificates by domain name, common name, serial number, SHA-256 fingerprint, or issuer
 - **Detailed Certificate View**: View complete certificate information including subject, issuer, validity periods, and extensions
 - **Subject Alternative Names**: Display all SAN entries for certificates
 - **Certificate Transparency Logs**: Track which CT log each certificate was found in
-- **Responsive Design**: Works on desktop and mobile devices with dark mode support
+
+### Sigstore Search
+- **Data Hash Search**: Find entries by SHA-256 hash of signed artifacts
+- **Email Search**: Search by email addresses in both PGP and X.509 certificates
+- **X.509 Certificate Search**: Search by common name, Subject Alternative Names (SANs), or serial number
+- **PGP Signature Search**: Search by PGP key fingerprint or signer email
+- **Artifact URL Search**: Find entries by the URL of signed artifacts
+- **Detailed Entry View**: View complete Sigstore entry information including signature details, certificates, and metadata
+
+### General
+- **Sidebar Navigation**: Easy switching between Certificate Transparency and Sigstore search
+- **Responsive Design**: Works on desktop and mobile devices
+- **Real-time Search**: Fast search with loading states and error handling
 
 ## Tech Stack
 
@@ -20,7 +33,7 @@ A web application for searching and monitoring SSL/TLS certificates from Certifi
 ## Prerequisites
 
 - Node.js 18+ 
-- ClickHouse database with CT log data
+- ClickHouse database with CT log data and Sigstore Rekor data
 - Environment variables for ClickHouse connection
 
 ## Environment Variables
@@ -51,8 +64,9 @@ npm run dev
 
 ## Database Schema
 
-The application expects a ClickHouse table named `ct_log_entries` with the schema defined in `/schema.sql`. Key fields include:
+The application expects two ClickHouse tables defined in `/schema.sql`:
 
+### Certificate Transparency (`ct_log_entries`)
 - Certificate identifiers (SHA-256, serial number)
 - Subject and issuer information
 - Validity periods
@@ -60,17 +74,38 @@ The application expects a ClickHouse table named `ct_log_entries` with the schem
 - Certificate extensions and key usage
 - CT log metadata
 
+### Sigstore Rekor (`rekor_log_entries`)
+- Entry metadata (UUID, tree ID, log index)
+- Signature format and data hashes
+- X.509 certificate information
+- PGP signature details
+- Artifact URLs and references
+
 ## API Endpoints
 
-### Get Certificate Details
+### Certificate Transparency
 ```
 GET /api/certificate/{sha256}
 ```
-
 Returns complete certificate information for a given SHA-256 fingerprint.
+
+### Sigstore Search
+```
+GET /api/sigstore/search?query={query}&type={type}&limit={limit}
+```
+Searches Sigstore entries by various criteria. Supported types:
+- `hash` - Data hash (SHA-256)
+- `email` - Email addresses in PGP or X.509 certificates
+- `x509_cn` - X.509 Common Name
+- `x509_san` - X.509 Subject Alternative Names
+- `x509_serial` - X.509 Serial Number
+- `pgp_fingerprint` - PGP Key Fingerprint
+- `pgp_email` - PGP Signer Email
+- `data_url` - Artifact URL
 
 ## Search Types
 
+### Certificate Transparency Search
 1. **Domain/SAN**: Search by domain name or Subject Alternative Name
    - Example: `example.com`, `*.example.com`
 
@@ -86,26 +121,58 @@ Returns complete certificate information for a given SHA-256 fingerprint.
 5. **Issuer**: Search by certificate issuer Common Name
    - Example: `Let's Encrypt Authority X3`
 
+### Sigstore Search
+1. **Data Hash**: Search by SHA-256 hash of signed artifacts
+   - Example: `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`
+
+2. **Any Email**: Search by email addresses in both PGP and X.509 certificates
+   - Example: `user@example.com`
+
+3. **X.509 Common Name**: Search by X.509 certificate Common Name
+   - Example: `github.com`
+
+4. **X.509 SAN**: Search by X.509 Subject Alternative Names
+   - Example: `example.com`
+
+5. **X.509 Serial**: Search by X.509 certificate serial number
+   - Example: `123456789abcdef`
+
+6. **PGP Fingerprint**: Search by PGP key fingerprint
+   - Example: `ABCD1234EFGH5678IJKL9012MNOP3456QRST7890`
+
+7. **PGP Email**: Search by PGP signer email address
+   - Example: `signer@example.com`
+
+8. **Artifact URL**: Search by the URL of signed artifacts
+   - Example: `https://github.com/owner/repo/releases`
+
 ## Project Structure
 
 ```
 ui/
 ├── app/
 │   ├── api/
-│   │   ├── search/route.ts          # Search API endpoint
-│   │   └── certificate/[sha256]/route.ts  # Certificate detail API
-│   ├── certificate/[sha256]/page.tsx # Certificate detail page
-│   ├── layout.tsx                   # Root layout
-│   ├── page.tsx                     # Main search page
-│   └── globals.css                  # Global styles
+│   │   ├── certificate/[sha256]/route.ts  # Certificate detail API
+│   │   └── sigstore/search/route.ts       # Sigstore search API
+│   ├── certificate/[sha256]/page.tsx      # Certificate detail page
+│   ├── sigstore/                          # Sigstore pages
+│   │   ├── page.tsx                       # Main Sigstore search page
+│   │   └── search/[query]/page.tsx        # Sigstore search results
+│   ├── search/[domain]/page.tsx           # CT search results
+│   ├── layout.tsx                         # Root layout with sidebar
+│   ├── page.tsx                           # Main CT search page
+│   └── globals.css                        # Global styles
 ├── components/
-│   ├── search-form.tsx              # Search interface
-│   └── certificate-list.tsx         # Certificate results list
+│   ├── search-form.tsx                    # CT search interface
+│   ├── sigstore-search-form.tsx           # Sigstore search interface
+│   ├── sigstore-results.tsx               # Sigstore results display
+│   └── certificate-list.tsx               # Certificate results list
 ├── lib/
-│   └── clickhouse.ts                # ClickHouse client configuration
+│   └── clickhouse.ts                      # ClickHouse client configuration
 ├── types/
-│   └── certificate.ts               # TypeScript interfaces
-└── public/                          # Static assets
+│   ├── certificate.ts                     # CT TypeScript interfaces
+│   └── sigstore.ts                        # Sigstore TypeScript interfaces
+└── public/                                # Static assets
 ```
 
 ## Development
