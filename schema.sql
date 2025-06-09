@@ -7,7 +7,6 @@ CREATE TABLE ct_log_entries
 
     -- Raw CT Log Data (as returned by the get-entries endpoint)
     leaf_input String COMMENT 'Base64 encoded MerkleTreeLeaf structure from the log entry' CODEC(ZSTD(1)),
-    extra_data String DEFAULT '' COMMENT 'Base64 encoded extra data from the log entry (e.g., certificate chain)',
 
     -- Parsed from MerkleTreeLeaf -> TimestampedEntry
     entry_timestamp DateTime COMMENT 'Timestamp from the TimestampedEntry (milliseconds since epoch, converted to DateTime)',
@@ -63,9 +62,6 @@ CREATE TABLE ct_log_entries
     precert_issuer_key_hash Nullable(FixedString(64)) COMMENT 'SHA-256 hash (hex) of the issuer public key (for Precertificate entries)',
     precert_poison_extension_present UInt8 DEFAULT 0 COMMENT 'Boolean (0 or 1) indicating if the X.509v3 Precertificate Poison extension is present',
 
-    -- Stored Raw Certificate (optional, for full reprocessing capability)
-    raw_leaf_certificate_der String DEFAULT '' COMMENT 'Base64 encoded DER of the leaf certificate itself (extracted from leaf_input)',
-
     -- PROJECTION for SAN lookups (optional, for performance)
     -- PROJECTION san_projection (
     -- SELECT
@@ -115,3 +111,92 @@ ARRAY JOIN arrayDistinct(
     )
 ) AS name
 WHERE name != '';
+
+-- Sigstore Rekor Log Entries Table
+CREATE TABLE rekor_log_entries
+(
+    -- Log Identification & Ingestion Metadata
+    tree_id LowCardinality(String) COMMENT 'Rekor tree ID (e.g., 1193050959916656506)',
+    log_index UInt64 COMMENT 'Index of the entry within the Rekor log',
+    entry_uuid String COMMENT 'Deterministic UUID of the log entry (64 hex chars)',
+    retrieval_timestamp DateTime DEFAULT now() COMMENT 'Timestamp when the entry was fetched and ingested',
+    
+    -- Raw Rekor Entry Data
+    body String COMMENT 'Base64 encoded entry body from Rekor API' CODEC(ZSTD(1)),
+    integrated_time DateTime COMMENT 'Timestamp when entry was integrated into the log',
+    log_id String COMMENT 'SHA256 hash of DER-encoded public key for the log',
+    
+    -- Parsed Entry Content (from decoded body)
+    kind LowCardinality(String) COMMENT 'Entry type: rekord, hashedrekord',
+    api_version String COMMENT 'API version of the entry format',
+    
+    -- Common Signature Information (present in most entry types)
+    signature_format LowCardinality(String) COMMENT 'Signature format: x509, pgp, minisign, ssh, etc.',
+    
+    -- Data Hash Information (common across entry types)
+    data_hash_algorithm LowCardinality(String) COMMENT 'Hash algorithm used: sha256, sha512, etc.',
+    data_hash_value String COMMENT 'Hash value of the signed data (hex string)',
+    
+    -- URL References (when artifacts are referenced by URL)
+    data_url String COMMENT 'URL of the signed artifact/data',
+    signature_url String COMMENT 'URL of the detached signature',
+    public_key_url String COMMENT 'URL of the public key',
+    
+    -- Verification Information
+    signed_entry_timestamp String COMMENT 'Base64 encoded signed entry timestamp' CODEC(ZSTD(1)),
+    
+    -- Entry Type Specific Fields (nullable for non-applicable types)
+    
+    -- X509 Certificate Fields (for hashedrekord entries with x509 certificates)
+    x509_certificate_sha256 String COMMENT 'SHA256 hash of the certificate (hex)',
+    x509_subject_dn String COMMENT 'Subject Distinguished Name',
+    x509_subject_cn String COMMENT 'Subject Common Name',
+    x509_subject_organization Array(String) COMMENT 'Subject Organization',
+    x509_subject_ou Array(String) COMMENT 'Subject Organizational Unit',
+    x509_issuer_dn String COMMENT 'Issuer Distinguished Name',
+    x509_issuer_cn String COMMENT 'Issuer Common Name',
+    x509_issuer_organization Array(String) COMMENT 'Issuer Organization',
+    x509_issuer_ou Array(String) COMMENT 'Issuer Organizational Unit',
+    x509_serial_number String COMMENT 'Certificate serial number',
+    x509_not_before DateTime COMMENT 'Certificate validity start',
+    x509_not_after DateTime COMMENT 'Certificate validity end',
+    x509_sans Array(String) COMMENT 'Subject Alternative Names',
+    x509_signature_algorithm LowCardinality(String) COMMENT 'Signature algorithm',
+    x509_public_key_algorithm LowCardinality(String) COMMENT 'Public key algorithm',
+    x509_public_key_size UInt16 COMMENT 'Public key size in bits',
+    x509_is_ca UInt8 COMMENT 'Is Certificate Authority (0/1)',
+    x509_key_usage Array(LowCardinality(String)) COMMENT 'Key usage extensions',
+    x509_extended_key_usage Array(LowCardinality(String)) COMMENT 'Extended key usage',
+    x509_extensions String COMMENT 'All X509v3 extensions as JSON' CODEC(ZSTD(1)),
+
+    -- PGP Message Fields (for rekord entries with PGP signatures)
+    pgp_signature_hash String COMMENT 'SHA256 hash of the PGP signature block (hex)',
+    pgp_public_key_fingerprint String COMMENT 'PGP public key fingerprint (hex)',
+    pgp_key_id String COMMENT 'PGP key ID (last 8 or 16 hex digits of fingerprint)',
+    pgp_signer_user_id String COMMENT 'Primary user ID of the signer',
+    pgp_signer_email String COMMENT 'Email address extracted from user ID',
+    pgp_signer_name String COMMENT 'Name extracted from user ID',
+    pgp_key_algorithm LowCardinality(String) COMMENT 'PGP key algorithm (RSA, ECDSA, EdDSA, etc.)',
+    pgp_key_size UInt16 COMMENT 'PGP key size in bits',
+    pgp_subkey_fingerprints Array(String) COMMENT 'Fingerprints of subkeys',
+    
+    -- Indexes for common query patterns
+    INDEX idx_entry_uuid entry_uuid TYPE bloom_filter GRANULARITY 1,
+    INDEX idx_data_hash data_hash_value TYPE bloom_filter GRANULARITY 1,
+    INDEX idx_kind kind TYPE set(16) GRANULARITY 1,
+    INDEX idx_integrated_time integrated_time TYPE minmax,
+    INDEX idx_x509_cert_sha256 x509_certificate_sha256 TYPE bloom_filter GRANULARITY 1,
+    INDEX idx_x509_subject_cn x509_subject_cn TYPE bloom_filter GRANULARITY 1,
+    INDEX idx_x509_issuer_cn x509_issuer_cn TYPE bloom_filter GRANULARITY 1,
+    INDEX idx_x509_sans x509_sans TYPE bloom_filter GRANULARITY 4,
+    INDEX idx_x509_serial x509_serial_number TYPE bloom_filter GRANULARITY 1,
+    INDEX idx_x509_not_after x509_not_after TYPE minmax,
+    INDEX idx_pgp_key_fingerprint pgp_public_key_fingerprint TYPE bloom_filter GRANULARITY 1,
+    INDEX idx_pgp_key_id pgp_key_id TYPE bloom_filter GRANULARITY 1,
+    INDEX idx_pgp_signer_email pgp_signer_email TYPE bloom_filter GRANULARITY 1,
+    INDEX idx_pgp_signature_hash pgp_signature_hash TYPE bloom_filter GRANULARITY 1
+)
+ENGINE = ReplacingMergeTree()
+PARTITION BY toYYYYMM(integrated_time) -- Partition by month of integration
+ORDER BY (tree_id, log_index) -- Primary sorting order
+SETTINGS storage_policy = 's3_policy', index_granularity = 8192;

@@ -8,7 +8,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE_NAME: ${{ github.repository }}/ctmon-ingest
+  CTMON_INGEST_IMAGE_NAME: ${{ github.repository }}/ctmon-ingest
+  SIGSTORE_INGEST_IMAGE_NAME: ${{ github.repository }}/sigstore-ingest
   UI_IMAGE_NAME: ${{ github.repository }}/ctmon-ui
 
 jobs:
@@ -42,7 +43,7 @@ jobs:
     - name: Build UI
       run: cd ui && npm run build
 
-  build-and-push-backend:
+  build-and-push-ctmon-ingest:
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -60,25 +61,63 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extract backend metadata
-      id: meta-backend
+    - name: Extract ctmon-ingest metadata
+      id: meta-ctmon-ingest
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
+        images: ${{ env.REGISTRY }}/${{ env.CTMON_INGEST_IMAGE_NAME }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
           type=sha
           type=raw,value=latest,enable={{is_default_branch}}
 
-    - name: Build and push backend Docker image
+    - name: Build and push ctmon-ingest Docker image
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
-        tags: ${{ steps.meta-backend.outputs.tags }}
-        labels: ${{ steps.meta-backend.outputs.labels }}
+        tags: ${{ steps.meta-ctmon-ingest.outputs.tags }}
+        labels: ${{ steps.meta-ctmon-ingest.outputs.labels }}
         target: ctmon_ingest
+
+  build-and-push-sigstore-ingest:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract sigstore-ingest metadata
+      id: meta-sigstore-ingest
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.SIGSTORE_INGEST_IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push sigstore-ingest Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta-sigstore-ingest.outputs.tags }}
+        labels: ${{ steps.meta-sigstore-ingest.outputs.labels }}
+        target: sigstore_ingest
 
   build-and-push-ui:
     needs: test

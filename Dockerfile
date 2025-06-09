@@ -18,7 +18,7 @@ COPY . .
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ctmon-ingest ./cmd/ctmon-ingest
 
-# Go backend runtime stage
+# Go ingest runtime stage
 FROM alpine:latest AS ctmon_ingest
 
 # Install ca-certificates for HTTPS requests
@@ -34,6 +34,23 @@ EXPOSE 8080
 
 # Run the binary
 CMD ["./ctmon-ingest"]
+
+# Go ingest runtime stage
+FROM alpine:latest AS sigstore_ingest
+
+# Install ca-certificates for HTTPS requests
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+# Copy the binary from builder stage
+COPY --from=builder /app/sigstore-ingest .
+
+# Expose port (if needed for health checks)
+EXPOSE 8080
+
+# Run the binary
+CMD ["./sigstore-ingest"]
 
 # UI build stage
 FROM node:20-alpine AS ui-builder
