@@ -350,7 +350,171 @@ func (proxy *ProxyInfo) GetProxyURL() string {
 	return fmt.Sprintf("http://%s:%s@%s:%s", proxy.Username, proxy.Password, proxy.Host, proxy.Port)
 }
 
-// CreateHTTPClient creates an HTTP client with proxy support
+// GetCurrentProxyKeys returns the set of current proxy keys (host:port)
+func (pp *ProxyPool) GetCurrentProxyKeys() map[string]bool {
+	if pp == nil {
+		return map[string]bool{"direct": true}
+	}
+
+	pp.mu.RLock()
+	defer pp.mu.RUnlock()
+
+	keys := make(map[string]bool)
+	if len(pp.proxies) == 0 {
+		keys["direct"] = true
+		return keys
+	}
+
+	for _, proxy := range pp.proxies {
+		key := proxy.Host + ":" + proxy.Port
+		keys[key] = true
+	}
+	return keys
+}
+
+// HTTPClientPool manages a pool of HTTP clients keyed by proxy IP
+type HTTPClientPool struct {
+	mu      sync.RWMutex
+	clients map[string]*http.Client // key: proxy IP or "direct" for no proxy
+}
+
+// NewHTTPClientPool creates a new HTTP client pool
+func NewHTTPClientPool() *HTTPClientPool {
+	return &HTTPClientPool{
+		clients: make(map[string]*http.Client),
+	}
+}
+
+// getClientKey returns a unique key for the proxy configuration
+func getClientKey(proxy *ProxyInfo) string {
+	if proxy == nil {
+		return "direct"
+	}
+	return proxy.Host + ":" + proxy.Port
+}
+
+// createHTTPClient creates an HTTP client with the specified proxy
+func createHTTPClient(proxy *ProxyInfo) *http.Client {
+	transport := &http.Transport{
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   10,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		TLSClientConfig:       &tls.Config{},
+	}
+
+	// Set up proxy if provided
+	if proxy != nil {
+		proxyURL, err := url.Parse(proxy.GetProxyURL())
+		if err != nil {
+			log.Printf("Warning: Failed to parse proxy URL for %s:%s: %v", proxy.Host, proxy.Port, err)
+		} else {
+			transport.Proxy = http.ProxyURL(proxyURL)
+		}
+	}
+
+	return &http.Client{
+		Timeout:   requestTimeout,
+		Transport: transport,
+	}
+}
+
+// GetClient returns a pooled HTTP client for the given proxy, creating one if needed
+func (pool *HTTPClientPool) GetClient(proxyPool *ProxyPool) *http.Client {
+	var proxy *ProxyInfo
+	if proxyPool != nil && len(proxyPool.proxies) > 0 {
+		proxy = proxyPool.GetNextProxy()
+	}
+
+	key := getClientKey(proxy)
+
+	// Try to get existing client
+	pool.mu.RLock()
+	client, exists := pool.clients[key]
+	pool.mu.RUnlock()
+
+	if exists {
+		return client
+	}
+
+	// Create new client if not found
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	// Double-check after acquiring write lock
+	if client, exists := pool.clients[key]; exists {
+		return client
+	}
+
+	// Create and store new client
+	client = createHTTPClient(proxy)
+	pool.clients[key] = client
+	return client
+}
+
+// CleanupUnusedClients removes HTTP clients that are no longer in the current proxy pool
+func (pool *HTTPClientPool) CleanupUnusedClients(proxyPool *ProxyPool) int {
+	currentKeys := proxyPool.GetCurrentProxyKeys()
+
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	removedCount := 0
+	for key, client := range pool.clients {
+		if !currentKeys[key] {
+			// This client is for a proxy that's no longer in the pool
+			if transport, ok := client.Transport.(*http.Transport); ok {
+				transport.CloseIdleConnections()
+			}
+			delete(pool.clients, key)
+			removedCount++
+		}
+	}
+
+	return removedCount
+}
+
+// StartPeriodicCleanup starts a goroutine that periodically cleans up unused HTTP clients
+func (pool *HTTPClientPool) StartPeriodicCleanup(proxyPool *ProxyPool, ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(clientCleanupInterval)
+		defer ticker.Stop()
+
+		log.Printf("Started HTTP client pool cleanup goroutine (interval: %v)", clientCleanupInterval)
+
+		for {
+			select {
+			case <-ticker.C:
+				if proxyPool != nil {
+					removedCount := pool.CleanupUnusedClients(proxyPool)
+					if removedCount > 0 {
+						log.Printf("Cleaned up %d unused HTTP clients from pool", removedCount)
+					}
+				}
+			case <-ctx.Done():
+				log.Printf("Stopping HTTP client pool cleanup goroutine")
+				return
+			}
+		}
+	}()
+}
+
+// Close closes all HTTP clients in the pool
+func (pool *HTTPClientPool) Close() {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	for key, client := range pool.clients {
+		if transport, ok := client.Transport.(*http.Transport); ok {
+			transport.CloseIdleConnections()
+		}
+		delete(pool.clients, key)
+	}
+}
+
+// CreateHTTPClient creates an HTTP client with proxy support (deprecated - use HTTPClientPool instead)
 func CreateHTTPClient(proxyPool *ProxyPool) *http.Client {
 	transport := &http.Transport{
 		MaxIdleConns:          100,
@@ -403,6 +567,7 @@ const (
 	logChannelBuffer      = 5000             // Increased for concurrent processing
 	pollingInterval       = 30 * time.Second // Check for new entries every 30 seconds
 	proxyRefreshInterval  = 1 * time.Minute  // Refresh proxy list every minute
+	clientCleanupInterval = 5 * time.Minute  // Cleanup unused HTTP clients every 5 minutes
 	rekorBaseURL          = "https://rekor.sigstore.dev"
 	userAgent             = "transparency.cafe (hello@su3.io)"
 )
@@ -893,7 +1058,7 @@ func fetchLogEntriesBatchWithRetry(client *http.Client, logIndexes []int64, rate
 }
 
 // fetchBatchConcurrent fetches a single batch concurrently and sends result to collector
-func fetchBatchConcurrent(proxyPool *ProxyPool, batchIndex int64, startIndex int64, logIndexes []int64, collector *OrderedBatchCollector, wg *sync.WaitGroup, ctx context.Context, rateLimitTracker *RateLimitTracker) {
+func fetchBatchConcurrent(clientPool *HTTPClientPool, proxyPool *ProxyPool, batchIndex int64, startIndex int64, logIndexes []int64, collector *OrderedBatchCollector, wg *sync.WaitGroup, ctx context.Context, rateLimitTracker *RateLimitTracker) {
 	defer wg.Done()
 
 	// Check for cancellation before starting
@@ -903,8 +1068,8 @@ func fetchBatchConcurrent(proxyPool *ProxyPool, batchIndex int64, startIndex int
 	default:
 	}
 
-	// Create a fresh HTTP client with a different proxy for this batch
-	client := CreateHTTPClient(proxyPool)
+	// Get a pooled HTTP client with a proxy for this batch
+	client := clientPool.GetClient(proxyPool)
 
 	entries, err := fetchLogEntriesBatchWithRetry(client, logIndexes, rateLimitTracker)
 	result := &BatchResult{
@@ -924,7 +1089,7 @@ func fetchBatchConcurrent(proxyPool *ProxyPool, batchIndex int64, startIndex int
 }
 
 // fetchLogEntriesConcurrent fetches multiple batches concurrently while preserving order
-func fetchLogEntriesConcurrent(proxyPool *ProxyPool, startIndex int64, totalEntries int64, batchSize int64, concurrency int, ctx context.Context, rateLimitTracker *RateLimitTracker) (*OrderedBatchCollector, error) {
+func fetchLogEntriesConcurrent(clientPool *HTTPClientPool, proxyPool *ProxyPool, startIndex int64, totalEntries int64, batchSize int64, concurrency int, ctx context.Context, rateLimitTracker *RateLimitTracker) (*OrderedBatchCollector, error) {
 	if totalEntries <= 0 {
 		return nil, fmt.Errorf("no entries to fetch")
 	}
@@ -983,7 +1148,7 @@ func fetchLogEntriesConcurrent(proxyPool *ProxyPool, startIndex int64, totalEntr
 		// Launch concurrent fetch
 		go func(bIdx int64, sIdx int64, idxs []int64) {
 			defer func() { <-semaphore }()
-			fetchBatchConcurrent(proxyPool, bIdx, sIdx, idxs, collector, &wg, ctx, rateLimitTracker)
+			fetchBatchConcurrent(clientPool, proxyPool, bIdx, sIdx, idxs, collector, &wg, ctx, rateLimitTracker)
 		}(batchIndex, currentIndex, logIndexes)
 
 		batchIndex++
@@ -2046,9 +2211,16 @@ func main() {
 	circuitBreaker := &CircuitBreaker{state: "closed"}
 	rateLimitTracker := NewRateLimitTracker(*concurrencyFlag)
 
+	// Initialize HTTP client pool
+	clientPool := NewHTTPClientPool()
+	defer clientPool.Close()
+
+	// Create context for background goroutines (proxy refresh and client cleanup)
+	backgroundCtx, backgroundCancel := context.WithCancel(context.Background())
+	defer backgroundCancel()
+
 	// Initialize proxy pool
 	var proxyPool *ProxyPool
-	var proxyRefreshCancel context.CancelFunc
 	if *proxyFileFlag != "" {
 		var err error
 		proxyPool, err = NewProxyPool(*proxyFileFlag)
@@ -2057,11 +2229,9 @@ func main() {
 		}
 		log.Printf("Proxy mode enabled (file): each concurrent batch will use a different proxy from the pool")
 	} else if *proxyURLFlag != "" {
-		// Set up context for proxy refresh that will be cancelled on shutdown
-		var ctx context.Context
-		ctx, proxyRefreshCancel = context.WithCancel(context.Background())
+		// Use background context for proxy refresh
 		var err error
-		proxyPool, err = NewProxyPoolFromURL(*proxyURLFlag, ctx)
+		proxyPool, err = NewProxyPoolFromURL(*proxyURLFlag, backgroundCtx)
 		if err != nil {
 			log.Fatalf("Failed to initialize proxy pool from URL: %v", err)
 		}
@@ -2071,8 +2241,11 @@ func main() {
 		log.Printf("Direct connection mode: no proxies configured")
 	}
 
-	// Create HTTP client for initial log info fetch (uses first proxy if available)
-	client := CreateHTTPClient(proxyPool)
+	// Start periodic cleanup of unused HTTP clients
+	clientPool.StartPeriodicCleanup(proxyPool, backgroundCtx)
+
+	// Create HTTP client for initial log info fetch (uses pooled client)
+	client := clientPool.GetClient(proxyPool)
 
 	// Fetch and print current log info
 	log.Printf("Fetching current Rekor log info from %s", rekorBaseURL)
@@ -2185,7 +2358,7 @@ func main() {
 			defer fetchCancel() // Ensure context is always cancelled
 
 			// Start concurrent fetching
-			collector, err := fetchLogEntriesConcurrent(proxyPool, currentIndex, chunkSize, *batchSizeFlag, currentConcurrency, fetchCtx, rateLimitTracker)
+			collector, err := fetchLogEntriesConcurrent(clientPool, proxyPool, currentIndex, chunkSize, *batchSizeFlag, currentConcurrency, fetchCtx, rateLimitTracker)
 			if err != nil {
 				fetchCancel()
 				if err == context.Canceled {
@@ -2306,10 +2479,7 @@ func main() {
 	log.Printf("Waiting for background database inserter to finish...")
 	wg.Wait()
 
-	// Stop proxy refresh goroutine if it was started
-	if proxyRefreshCancel != nil {
-		proxyRefreshCancel()
-	}
+	// Background goroutines (proxy refresh and client cleanup) are stopped by defer backgroundCancel()
 
 	log.Printf("Finished. Total entries processed: %d", totalFetched)
 }
