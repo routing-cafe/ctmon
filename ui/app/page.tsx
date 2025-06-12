@@ -1,24 +1,9 @@
 import CtStats from "@/components/ct-stats";
 import SearchForm from "@/components/search-form";
-import client from "@/lib/clickhouse";
 
-export default async function Home() {
-  const sql = `
-      SELECT 
-        log_id,
-        max_timestamp,
-        total
-      FROM ct_log_stats_by_log_id 
-    `;
+export const dynamic = "force-dynamic";
 
-  const resultSet = await client.query({
-    query: sql,
-    query_params: {},
-    format: "JSONEachRow",
-  });
-
-  const rows = await resultSet.json();
-
+export default function Home() {
   return (
     <div className="min-h-full">
       <div className="container px-6 pt-6 max-w-4xl">
@@ -36,7 +21,7 @@ export default async function Home() {
           </div>
 
           <SearchForm />
-          <CtStats stats={rows as any} />
+          <CtStats />
         </div>
       </div>
     </div>

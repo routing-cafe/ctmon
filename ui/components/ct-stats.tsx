@@ -1,4 +1,4 @@
-"use client";
+import client from "@/lib/clickhouse";
 
 interface CtStatsRow {
     log_id: number;
@@ -6,11 +6,23 @@ interface CtStatsRow {
     total: number;
 }
 
-interface CtStatsProps {
-    stats: CtStatsRow[];
-}
+export default async function CtStats() {
+    const sql = `
+      SELECT 
+        log_id,
+        max_timestamp,
+        total
+      FROM ct_log_stats_by_log_id 
+    `;
 
-export default function CtStats({ stats }: CtStatsProps) {
+    const resultSet = await client.query({
+        query: sql,
+        query_params: {},
+        format: "JSONEachRow",
+    });
+
+    const stats = (await resultSet.json()) as CtStatsRow[];
+
     return (
         <div className="space-y-3 pt-4">
             <p className="mb-4 font-bold">Statistics</p>
@@ -42,7 +54,7 @@ export default function CtStats({ stats }: CtStatsProps) {
                         </tr>
                     </thead>
                     <tbody>
-                        {stats.map((row, index) => (
+                        {stats.map((row) => (
                             <tr
                                 key={row.log_id}
                                 className="hover:bg-opacity-50"

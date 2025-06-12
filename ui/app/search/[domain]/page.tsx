@@ -1,4 +1,3 @@
-import Link from "next/link";
 import CertificateList from "@/components/certificate-list";
 import { Certificate, SearchQuery } from "@/types/certificate";
 import client from "@/lib/clickhouse";
