@@ -58,7 +58,7 @@ export default function CertificateList(
                 className="text-left py-1 pr-4 font-medium"
                 style={{ color: "var(--muted-foreground)" }}
               >
-                Valid Until (UTC)
+                Timestamp (UTC)
               </th>
               <th
                 className="text-left py-1 pr-4 font-medium"
@@ -90,7 +90,7 @@ export default function CertificateList(
                   {`${cert.issuer_organization} ${cert.issuer_common_name}`}
                 </td>
                 <td className="py-0.5 pr-4">
-                  {cert.not_after}
+                  {cert.entry_timestamp}
                 </td>
                 <td className="py-0.5 pr-4">
                   {cert.ct_log_count !== undefined

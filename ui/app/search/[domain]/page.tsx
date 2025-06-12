@@ -39,6 +39,7 @@ async function getSearchResults(
         certificate_sha256,
         log_id,
         log_index,
+        entry_timestamp,
         not_after,
         subject_common_name,
         issuer_common_name,
@@ -46,7 +47,7 @@ async function getSearchResults(
       FROM ct_log_entries_by_name
       WHERE name_rev = reverse({query:String}) OR
             name_rev LIKE reverse({wildcard:String})
-      ORDER BY not_after DESC
+      ORDER BY entry_timestamp DESC
       LIMIT {limit:UInt32}
       SETTINGS max_execution_time = 10, max_threads = 1, max_memory_usage = 134217728`;
         additionalParams.wildcard = `%.${query}`;
@@ -71,6 +72,7 @@ async function getSearchResults(
         certificate_sha256,
         not_before,
         not_after,
+        entry_timestamp,
         subject_common_name,
         issuer_common_name,
         issuer_organization,
@@ -79,7 +81,7 @@ async function getSearchResults(
       FROM ct_log_entries 
       WHERE ${whereClause}
       AND entry_type = 'x509_entry'
-      ORDER BY not_after DESC 
+      ORDER BY entry_timestamp DESC 
       LIMIT {limit:UInt32}
       SETTINGS max_execution_time = 10, max_threads = 1, max_memory_usage = 134217728
     `;
@@ -110,6 +112,10 @@ async function getSearchResults(
 
       if (certMap.has(sha256)) {
         // Add this log entry to the existing certificate
+        const existing = certMap.get(sha256)!;
+        if (current.entry_timestamp < existing.cert.entry_timestamp) {
+          existing.cert.entry_timestamp = current.entry_timestamp;
+        }
         certMap.get(sha256)!.logEntries.add(logKey);
       } else {
         // Create new entry
@@ -125,6 +131,11 @@ async function getSearchResults(
       ...cert,
       ct_log_count: logEntries.size,
     }));
+    data.sort(
+      (a, b) =>
+        new Date(b.entry_timestamp).getTime() -
+        new Date(a.entry_timestamp).getTime(),
+    );
 
     const headers = resultSet.response_headers;
     const summaryHeader = headers["x-clickhouse-summary"];
