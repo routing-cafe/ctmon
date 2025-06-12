@@ -74,8 +74,6 @@ CREATE TABLE ct_log_entries
     -- )
 
     -- Indexes for common query patterns
-    INDEX idx_cert_sha256 certificate_sha256 TYPE bloom_filter GRANULARITY 1,
-    INDEX idx_tbs_sha256 tbs_certificate_sha256 TYPE bloom_filter GRANULARITY 1,
     INDEX idx_subject_cn subject_common_name TYPE bloom_filter GRANULARITY 1,
     INDEX idx_issuer_cn issuer_common_name TYPE bloom_filter GRANULARITY 1,
     INDEX idx_sans subject_alternative_names TYPE bloom_filter GRANULARITY 4, -- For has(subject_alternative_names, 'value')
@@ -90,19 +88,31 @@ SETTINGS storage_policy = 's3_policy', index_granularity = 8192;
 
 CREATE TABLE ct_log_entries_by_name
 (
-    name_rev String,
+    name_rev String CODEC(ZSTD(1)),
+    certificate_sha256 FixedString(64),
     log_id LowCardinality(String),
-    log_index UInt64
+    log_index UInt64 CODEC(ZSTD(1)),
+    subject_common_name String CODEC(ZSTD(1)),
+    issuer_common_name String CODEC(ZSTD(1)),
+    issuer_organization Array(String) CODEC(ZSTD(1)),
+    entry_timestamp DateTime CODEC(ZSTD(1)),
+    not_after DateTime CODEC(ZSTD(1))
 )
 ENGINE = ReplacingMergeTree()
-ORDER BY (name_rev, log_id, log_index)
+ORDER BY (name_rev, certificate_sha256, log_id, log_index)
 SETTINGS storage_policy = 's3_policy', index_granularity = 8192;
 
 CREATE MATERIALIZED VIEW ct_log_entries_by_name_mv TO ct_log_entries_by_name AS
 SELECT 
     reverse(name) AS name_rev,
+    certificate_sha256,
     log_id,
-    log_index
+    log_index,
+    subject_common_name,
+    issuer_common_name,
+    issuer_organization,
+    entry_timestamp,
+    not_after
 FROM ct_log_entries
 ARRAY JOIN arrayDistinct(
     arrayConcat(
@@ -110,7 +120,25 @@ ARRAY JOIN arrayDistinct(
         [subject_common_name]
     )
 ) AS name
-WHERE name != '';
+WHERE name != '' and entry_type = 'x509_entry';
+
+create table ct_log_entries_by_sha256
+(
+    certificate_sha256 FixedString(64),
+    log_id LowCardinality(String),
+    log_index UInt64
+)
+ENGINE = ReplacingMergeTree()
+ORDER BY (certificate_sha256, log_id, log_index)
+SETTINGS storage_policy = 's3_policy', index_granularity = 8192;
+
+CREATE MATERIALIZED VIEW ct_log_entries_by_sha256_mv TO ct_log_entries_by_sha256 AS
+SELECT 
+    certificate_sha256,
+    log_id,
+    log_index
+FROM ct_log_entries
+WHERE certificate_sha256 != '';
 
 -- Sigstore Rekor Log Entries Table
 CREATE TABLE rekor_log_entries
@@ -200,3 +228,26 @@ ENGINE = ReplacingMergeTree()
 PARTITION BY toYYYYMM(integrated_time) -- Partition by month of integration
 ORDER BY (tree_id, log_index) -- Primary sorting order
 SETTINGS storage_policy = 's3_policy', index_granularity = 8192;
+
+CREATE MATERIALIZED VIEW ct_log_stats_by_log_id
+REFRESH EVERY 5 MINUTE
+ENGINE = Memory
+AS SELECT log_id, max(entry_timestamp) as max_timestamp, count() as total
+FROM ct_log_entries
+GROUP BY log_id ORDER BY log_id LIMIT 1000;
+
+CREATE MATERIALIZED VIEW rekor_log_stats_by_issuer
+REFRESH EVERY 5 MINUTE
+ENGINE = Memory
+AS SELECT
+    x509_issuer_cn,
+    count() as total_entries,
+    max(integrated_time) as last_seen
+FROM rekor_log_entries
+WHERE kind = 'hashedrekord' AND x509_issuer_cn != '' AND toYYYYMM(integrated_time) IN [
+    toYYYYMM(now()), 
+    toYYYYMM(now() - INTERVAL 1 MONTH),
+    toYYYYMM(now() - INTERVAL 2 MONTH),
+    toYYYYMM(now() - INTERVAL 3 MONTH)
+] AND integrated_time >= now() - INTERVAL 3 MONTH
+GROUP BY x509_issuer_cn ORDER BY x509_issuer_cn LIMIT 1000;

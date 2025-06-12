@@ -46,18 +46,12 @@ export default function CertificateDetail() {
         className="min-h-screen"
         style={{ background: "var(--background)", color: "var(--foreground)" }}
       >
-        <div className="container mx-auto px-6 py-8 max-w-7xl">
-          <div className="flex justify-center items-center py-16">
+        <div className="container px-6 max-w-7xl">
+          <div className="flex py-8">
             <div className="flex items-center gap-3">
-              <div
-                className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin"
-                style={{ color: "var(--primary)" }}
-              >
+              <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin">
               </div>
-              <span
-                className="text-lg font-medium"
-                style={{ color: "var(--muted-foreground)" }}
-              >
+              <span className="text-lg font-medium">
                 Loading certificate details...
               </span>
             </div>
@@ -73,10 +67,10 @@ export default function CertificateDetail() {
         className="min-h-screen"
         style={{ background: "var(--background)", color: "var(--foreground)" }}
       >
-        <div className="container mx-auto px-6 py-8 max-w-7xl">
+        <div className="container px-6 py-8 max-w-7xl">
           <div className="text-center py-16">
             <div
-              className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center"
+              className="w-16 h-16 mb-6 rounded-full flex items-center justify-center"
               style={{
                 background: "var(--destructive)",
                 color: "var(--destructive-foreground)",
@@ -108,29 +102,6 @@ export default function CertificateDetail() {
             >
               {error}
             </p>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-150 ease-out"
-              style={{
-                background: "var(--primary)",
-                color: "var(--primary-foreground)",
-              }}
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                />
-              </svg>
-              Back to Search
-            </Link>
           </div>
         </div>
       </div>
@@ -146,41 +117,15 @@ export default function CertificateDetail() {
       className="min-h-screen"
       style={{ background: "var(--background)", color: "var(--foreground)" }}
     >
-      <div className="container mx-auto px-6 py-8 max-w-7xl">
-        <div className="mb-8">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm font-medium transition-colors duration-150 ease-out"
-            style={{ color: "var(--primary)" }}
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-            Back to Search
-          </Link>
-        </div>
-
-        <div className="max-w-6xl mx-auto">
-          <div
-            className="border rounded-xl overflow-hidden"
-            style={{ background: "var(--card)", borderColor: "var(--border)" }}
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-8">
+      <div className="container px-6 py-8 max-w-7xl">
+        <div className="max-w-6xl">
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-8">
                 <div>
                   <h2
                     className="text-xl font-semibold mb-4"
-                    style={{ color: "var(--card-foreground)" }}
+                    style={{ color: "var(--foreground)" }}
                   >
                     Subject Information
                   </h2>
@@ -193,7 +138,7 @@ export default function CertificateDetail() {
                         Common Name
                       </label>
                       <div
-                        className="font-mono text-sm break-all p-3 rounded-lg"
+                        className="font-mono text-sm break-all rounded-lg"
                         style={{ background: "var(--muted)" }}
                       >
                         {certificate.subject_common_name}
@@ -209,27 +154,10 @@ export default function CertificateDetail() {
                           Organization
                         </label>
                         <div
-                          className="font-mono text-sm p-3 rounded-lg"
+                          className="font-mono text-sm rounded-lg"
                           style={{ background: "var(--muted)" }}
                         >
                           {certificate.subject_organization.join(", ")}
-                        </div>
-                      </div>
-                    )}
-
-                    {certificate.subject_country.length > 0 && (
-                      <div>
-                        <label
-                          className="text-sm font-medium block mb-2"
-                          style={{ color: "var(--muted-foreground)" }}
-                        >
-                          Country
-                        </label>
-                        <div
-                          className="font-mono text-sm p-3 rounded-lg"
-                          style={{ background: "var(--muted)" }}
-                        >
-                          {certificate.subject_country.join(", ")}
                         </div>
                       </div>
                     )}
@@ -239,7 +167,7 @@ export default function CertificateDetail() {
                 <div>
                   <h2
                     className="text-xl font-semibold mb-4"
-                    style={{ color: "var(--card-foreground)" }}
+                    style={{ color: "var(--foreground)" }}
                   >
                     Issuer Information
                   </h2>
@@ -252,7 +180,7 @@ export default function CertificateDetail() {
                         Common Name
                       </label>
                       <div
-                        className="font-mono text-sm break-all p-3 rounded-lg"
+                        className="font-mono text-sm break-all rounded-lg"
                         style={{ background: "var(--muted)" }}
                       >
                         {certificate.issuer_common_name}
@@ -268,7 +196,7 @@ export default function CertificateDetail() {
                           Organization
                         </label>
                         <div
-                          className="font-mono text-sm p-3 rounded-lg"
+                          className="font-mono text-sm rounded-lg"
                           style={{ background: "var(--muted)" }}
                         >
                           {certificate.issuer_organization.join(", ")}
@@ -283,7 +211,7 @@ export default function CertificateDetail() {
                 <div>
                   <h2
                     className="text-xl font-semibold mb-4"
-                    style={{ color: "var(--card-foreground)" }}
+                    style={{ color: "var(--foreground)" }}
                   >
                     Certificate Details
                   </h2>
@@ -296,7 +224,7 @@ export default function CertificateDetail() {
                         Serial Number
                       </label>
                       <div
-                        className="font-mono text-sm break-all p-3 rounded-lg"
+                        className="font-mono text-sm break-all rounded-lg"
                         style={{ background: "var(--muted)" }}
                       >
                         {certificate.serial_number}
@@ -311,7 +239,7 @@ export default function CertificateDetail() {
                         SHA-256 Fingerprint
                       </label>
                       <div
-                        className="font-mono text-sm break-all p-3 rounded-lg"
+                        className="font-mono text-sm break-all rounded-lg"
                         style={{ background: "var(--muted)" }}
                       >
                         {certificate.certificate_sha256}
@@ -327,7 +255,7 @@ export default function CertificateDetail() {
                           Valid From (UTC)
                         </label>
                         <div
-                          className="text-sm p-3 rounded-lg"
+                          className="text-sm rounded-lg font-mono"
                           style={{ background: "var(--muted)" }}
                         >
                           {certificate.not_before}
@@ -341,7 +269,7 @@ export default function CertificateDetail() {
                           Valid Until (UTC)
                         </label>
                         <div
-                          className="text-sm p-3 rounded-lg"
+                          className="text-sm rounded-lg font-mono"
                           style={{ background: "var(--muted)" }}
                         >
                           {certificate.not_after}
@@ -356,17 +284,7 @@ export default function CertificateDetail() {
                       >
                         Entry Type
                       </label>
-                      <span
-                        className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium"
-                        style={{
-                          background: certificate.entry_type === "x509_entry"
-                            ? "var(--accent)"
-                            : "var(--secondary)",
-                          color: certificate.entry_type === "x509_entry"
-                            ? "var(--accent-foreground)"
-                            : "var(--secondary-foreground)",
-                        }}
-                      >
+                      <span className="inline-flex items-center rounded-lg text-sm font-mono">
                         {certificate.entry_type === "x509_entry"
                           ? "Certificate"
                           : "Precertificate"}
@@ -377,68 +295,98 @@ export default function CertificateDetail() {
               </div>
             </div>
 
-            <div
-              className="border-t p-6"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <div className="text-xs">
-                <div
-                  className="grid grid-cols-12 gap-2 py-2 font-medium border-b"
-                  style={{
-                    borderColor: "var(--border)",
-                    color: "var(--muted-foreground)",
-                  }}
+            <div>
+              <div className="space-y-3">
+                <h3
+                  className="text-lg font-semibold"
+                  style={{ color: "var(--foreground)" }}
                 >
-                  <div className="col-span-6">Log ID</div>
-                  <div className="col-span-2">Index</div>
-                  <div className="col-span-2">Timestamp</div>
+                  CT Log Entries
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="text-xs leading-tight font-mono">
+                    <thead>
+                      <tr
+                        className="border-b"
+                        style={{ borderColor: "var(--border)" }}
+                      >
+                        <th
+                          className="text-left py-1 pr-4 font-medium"
+                          style={{ color: "var(--muted-foreground)" }}
+                        >
+                          Log ID
+                        </th>
+                        <th
+                          className="text-left py-1 pr-4 font-medium"
+                          style={{ color: "var(--muted-foreground)" }}
+                        >
+                          Index
+                        </th>
+                        <th
+                          className="text-right py-1 font-medium"
+                          style={{ color: "var(--muted-foreground)" }}
+                        >
+                          Timestamp (UTC)
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(certificate.ct_logs ?? []).map((log, index) => (
+                        <tr
+                          key={index}
+                          className="hover:bg-opacity-50"
+                          style={{
+                            color: "var(--foreground)",
+                          }}
+                        >
+                          <td className="py-0.5 pr-4">
+                            {log.log_id}
+                          </td>
+                          <td className="py-0.5 pr-4">
+                            {log.log_index}
+                          </td>
+                          <td className="py-0.5 text-right">
+                            {log.entry_timestamp}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                {(certificate.ct_logs ?? []).map((log, index) => (
-                  <div
-                    key={index}
-                    className="grid grid-cols-12 gap-2 py-2 border-b"
-                    style={{ borderColor: "var(--border)" }}
-                  >
-                    <div className="col-span-6 font-mono break-all">
-                      {log.log_id}
-                    </div>
-                    <div className="col-span-2">{log.log_index}</div>
-                    <div className="col-span-2">
-                      {new Date(log.entry_timestamp).toLocaleString()}
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
             {certificate.subject_alternative_names.length > 0 && (
-              <div
-                className="p-6 pt-1"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <div className="text-xs">
-                  <div
-                    className="grid grid-cols-12 gap-2 py-2 font-medium border-b"
-                    style={{
-                      borderColor: "var(--border)",
-                      color: "var(--muted-foreground)",
-                    }}
+              <div>
+                <div className="space-y-3">
+                  <h3
+                    className="text-lg font-semibold"
+                    style={{ color: "var(--foreground)" }}
                   >
-                    <div className="col-span-12">
-                      Subject Alternative Names ({certificate
-                        .subject_alternative_names.length})
-                    </div>
+                    Subject Alternative Names ({certificate
+                      .subject_alternative_names.length})
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="text-xs leading-tight font-mono">
+                      <tbody>
+                        {certificate.subject_alternative_names.map((
+                          san,
+                          index,
+                        ) => (
+                          <tr
+                            key={index}
+                            className="hover:bg-opacity-50"
+                            style={{
+                              color: "var(--foreground)",
+                            }}
+                          >
+                            <td className="py-0.5">
+                              {san}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  {certificate.subject_alternative_names.map((san, index) => (
-                    <div
-                      key={index}
-                      className="grid grid-cols-12 gap-2 py-2 border-b"
-                      style={{ borderColor: "var(--border)" }}
-                    >
-                      <div className="col-span-12 font-mono break-all">
-                        {san}
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
             )}

@@ -38,7 +38,6 @@ export interface Certificate {
   ocsp_responders: string[];
   precert_issuer_key_hash: string | null;
   precert_poison_extension_present: number;
-  raw_leaf_certificate_der: string;
   ct_log_count?: number;
   ct_logs?: Array<{
     log_id: string;
@@ -50,6 +49,6 @@ export interface Certificate {
 
 export interface SearchQuery {
   query: string;
-  queryType: "domain" | "commonName" | "serialNumber" | "sha256" | "issuer";
+  queryType: "domain" | "sha256";
   limit?: number;
 }

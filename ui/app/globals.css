@@ -1,105 +1,25 @@
 @import "tailwindcss";
 
-:root {
-  /* Linear-inspired color scheme */
-  --background: #fcfcfc;
-  --foreground: #0f0f0f;
-  --muted: #f1f3f4;
-  --muted-foreground: #5e6ad2;
-  --popover: #ffffff;
-  --popover-foreground: #0f0f0f;
-  --card: #ffffff;
-  --card-foreground: #0f0f0f;
-  --border: #e8eaed;
-  --input: #f8f9fa;
-  --primary: #5e6ad2;
-  --primary-foreground: #ffffff;
-  --secondary: #f1f3f4;
-  --secondary-foreground: #3c4043;
-  --accent: #4285f4;
-  --accent-foreground: #ffffff;
-  --destructive: #ea4335;
-  --destructive-foreground: #ffffff;
-  --ring: #5e6ad2;
-  --radius: 8px;
+.noticia-text-regular {
+  font-family: "Noticia Text", serif;
+  font-weight: 400;
+  font-style: normal;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --font-sans: system-ui, -apple-system, sans-serif;
-  --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+.noticia-text-bold {
+  font-family: "Noticia Text", serif;
+  font-weight: 700;
+  font-style: normal;
 }
 
-/* Dark mode disabled - always use light mode */
-
-* {
-  border-color: var(--border);
+.noticia-text-regular-italic {
+  font-family: "Noticia Text", serif;
+  font-weight: 400;
+  font-style: italic;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Linear-style animations and transitions */
-* {
-  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
-}
-
-/* Custom scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--muted);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--muted-foreground);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--foreground);
-}
-
-/* Focus ring styles */
-.focus-ring {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-/* Linear-style shadows */
-.shadow-sm {
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-}
-
-.shadow {
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-}
-
-.shadow-md {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-}
-
-.shadow-lg {
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+.noticia-text-bold-italic {
+  font-family: "Noticia Text", serif;
+  font-weight: 700;
+  font-style: italic;
 }

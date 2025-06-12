@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
 import "./globals.css";
+import Nav from "@/components/nav";
+import Link from "next/link";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Transparency Search",
+  title: "transparency.cafe",
   description:
     "Search SSL/TLS certificates and Sigstore entries from transparency logs",
 };
@@ -26,34 +27,40 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Noticia+Text:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <div className="flex h-screen">
-          <nav className="w-64 bg-gray-50 border-r border-gray-200 p-6">
-            <div className="mb-8">
-              <h1 className="text-xl font-semibold text-gray-900">
-                Transparency Search
-              </h1>
+        <div className="flex flex-col h-screen bg-black text-white noticia-text-regular">
+          <nav className="w-full bg-blue-900 px-4 py-2">
+            <div className="flex flex-row text-xs pl-3">
+              <p>
+                Internet Transparency Looking Glass
+              </p>
+              <div className="grow"></div>
+              <p>
+                <Link
+                  href="https://routing.cafe"
+                  className="underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  routing.cafe
+                </Link>
+              </p>
             </div>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  href="/"
-                  className="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100"
-                >
-                  Certificate Transparency
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/sigstore"
-                  className="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100"
-                >
-                  Sigstore
-                </Link>
-              </li>
-            </ul>
+            <Nav />
           </nav>
           <main className="flex-1 overflow-auto">
             {children}

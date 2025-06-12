@@ -106,9 +106,9 @@ export async function GET(request: NextRequest) {
         pgp_subkey_fingerprints
       FROM rekor_log_entries 
       WHERE ${whereClause}
-      ORDER BY integrated_time DESC
+      ORDER BY (tree_id, log_index) DESC
       LIMIT {limit:UInt32}
-      SETTINGS max_execution_time = 30, max_threads = 1, max_memory_usage = 268435456
+      SETTINGS max_execution_time = 30, max_threads = 1, max_memory_usage = 134217728
     `;
 
     const resultSet = await client.query({

@@ -26,7 +26,7 @@ export default function SigstoreSearchForm({ onSearch, loading }: SigstoreSearch
         setIsNavigating(true);
         const searchParams = new URLSearchParams({
           type: queryType,
-          limit: "100",
+          limit: "1000",
         });
         const encodedQuery = encodeURIComponent(query.trim());
         router.push(`/sigstore/search/${encodedQuery}?${searchParams}`);

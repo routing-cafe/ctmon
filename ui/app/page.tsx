@@ -1,22 +1,43 @@
+import CtStats from "@/components/ct-stats";
 import SearchForm from "@/components/search-form";
+import client from "@/lib/clickhouse";
 
-export default function Home() {
+export default async function Home() {
+  const sql = `
+      SELECT 
+        log_id,
+        max_timestamp,
+        total
+      FROM ct_log_stats_by_log_id 
+    `;
+
+  const resultSet = await client.query({
+    query: sql,
+    query_params: {},
+    format: "JSONEachRow",
+  });
+
+  const rows = await resultSet.json();
+
   return (
-    <div className="min-h-full bg-white">
-      <div className="container mx-auto px-6 pt-12 max-w-7xl">
-        <header className="text-center mb-12">
-          <div className="inline-flex items-center gap-3 mb-4">
-            <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
-              Certificate Transparency Search
-            </h1>
+    <div className="min-h-full">
+      <div className="container px-6 pt-6 max-w-4xl">
+        <div className="space-y-8">
+          <div className="text-sm flex flex-col gap-2">
+            <p>
+              Certificate Transparency (CT) is a public logging system that
+              records SSL/TLS certificates issued by Certificate Authorities.
+              These logs help detect misissued certificates and improve web
+              security by making certificate issuance transparent and auditable.
+            </p>
+            <p>
+              Our system continuously ingests and indexes multiple CT logs.
+            </p>
           </div>
-          <p className="text-lg font-normal text-gray-600">
-            Search and monitor SSL/TLS certificates from Certificate
-            Transparency logs
-          </p>
-        </header>
 
-        <SearchForm />
+          <SearchForm />
+          <CtStats stats={rows as any} />
+        </div>
       </div>
     </div>
   );

@@ -56,12 +56,15 @@ export async function GET(
         ocsp_responders,
         precert_issuer_key_hash,
         precert_poison_extension_present,
-        raw_leaf_certificate_der
+        leaf_input
       FROM ct_log_entries 
-      WHERE certificate_sha256 = {sha256:String}
+      WHERE (log_id, log_index) IN (
+        SELECT log_id, log_index FROM ct_log_entries_by_sha256
+        WHERE certificate_sha256 = {sha256:String}
+      )
       AND entry_type = 'x509_entry'
       ORDER BY not_after DESC
-      SETTINGS max_execution_time = 30, max_threads = 1, max_memory_usage = 134217728
+      SETTINGS max_execution_time = 10, max_threads = 1, max_memory_usage = 67108864
     `;
 
     const resultSet = await client.query({
