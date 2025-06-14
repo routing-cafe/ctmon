@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SigstoreEntry } from "@/types/sigstore";
 import client from "@/lib/clickhouse";
-
-function escapeXml(unsafe: string): string {
-  return unsafe.replace(/[<>&'"]/g, (c) => {
-    switch (c) {
-      case '<': return '&lt;';
-      case '>': return '&gt;';
-      case '&': return '&amp;';
-      case '\'': return '&apos;';
-      case '"': return '&quot;';
-      default: return c;
-    }
-  });
-}
+import { generateRSSFeed, getRSSResponse, getBaseUrl, RSSItem } from "@/lib/rss";
 
 interface FeedParams {
   params: Promise<{ org: string }>;
@@ -31,7 +19,7 @@ async function getSigstoreEntriesForOrg(org: string, limit: number = 50): Promis
     WHERE repository_name LIKE {orgPattern:String}
     ORDER BY integrated_time DESC
     LIMIT {limit:UInt32}
-    SETTINGS max_execution_time = 30, max_threads = 1, max_memory_usage = 268435456
+    SETTINGS max_execution_time = 5, max_threads = 1, max_memory_usage = 134217728
   `;
 
   const resultSet = await client.query({
@@ -46,14 +34,12 @@ async function getSigstoreEntriesForOrg(org: string, limit: number = 50): Promis
   return await resultSet.json<SigstoreEntry>();
 }
 
-function generateRSSFeed(entries: SigstoreEntry[], org: string): string {
-  const now = new Date().toUTCString();
-  const feedUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://transparency.cafe'}/api/sigstore/feed/${org}`;
-  const webUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://transparency.cafe'}/sigstore/search/${encodeURIComponent(org)}?type=github_organization`;
-
-  const items = entries.map(entry => {
+function createSigstoreOrgRSSItems(entries: SigstoreEntry[]): RSSItem[] {
+  const baseUrl = getBaseUrl();
+  
+  return entries.map(entry => {
     const pubDate = new Date(entry.integrated_time).toUTCString();
-    const entryUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://transparency.cafe'}/sigstore/entry/${entry.entry_uuid}`;
+    const entryUrl = `${baseUrl}/sigstore/entry/${entry.entry_uuid}`;
     
     const getTitle = () => {
       const repo = entry.repository_name || "Unknown Repository";
@@ -68,30 +54,14 @@ function generateRSSFeed(entries: SigstoreEntry[], org: string): string {
       return desc;
     };
 
-    return `
-    <item>
-      <title>${escapeXml(getTitle())}</title>
-      <description>${escapeXml(getDescription())}</description>
-      <link>${escapeXml(entryUrl)}</link>
-      <guid isPermaLink="true">${escapeXml(entryUrl)}</guid>
-      <pubDate>${pubDate}</pubDate>
-    </item>`;
-  }).join('\n');
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>${escapeXml(`Sigstore Rekor Entries for ${org}`)}</title>
-    <description>${escapeXml(`Recent Sigstore Rekor transparency log entries for GitHub organization ${org}`)}</description>
-    <link>${escapeXml(webUrl)}</link>
-    <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml" />
-    <lastBuildDate>${now}</lastBuildDate>
-    <generator>transparency.cafe</generator>
-    <language>en-us</language>
-    <ttl>60</ttl>
-    ${items}
-  </channel>
-</rss>`;
+    return {
+      title: getTitle(),
+      description: getDescription(),
+      link: entryUrl,
+      guid: entryUrl,
+      pubDate: pubDate,
+    };
+  });
 }
 
 export async function GET(request: NextRequest, { params }: FeedParams) {
@@ -101,14 +71,22 @@ export async function GET(request: NextRequest, { params }: FeedParams) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
 
     const entries = await getSigstoreEntriesForOrg(org, limit);
-    const rssXml = generateRSSFeed(entries, org);
+    const items = createSigstoreOrgRSSItems(entries);
+    
+    const baseUrl = getBaseUrl();
+    const feedUrl = `${baseUrl}/api/sigstore/feed/${org}`;
+    const webUrl = `${baseUrl}/sigstore/search/${encodeURIComponent(org)}?type=github_organization`;
 
-    return new NextResponse(rssXml, {
-      headers: {
-        'Content-Type': 'application/rss+xml; charset=utf-8',
-        'Cache-Control': 'public, max-age=300, s-maxage=300', // Cache for 5 minutes
-      },
+    const rssXml = generateRSSFeed({
+      title: `Sigstore Rekor Entries for ${org}`,
+      description: `Recent Sigstore Rekor transparency log entries for GitHub organization ${org}`,
+      link: webUrl,
+      feedUrl: feedUrl,
+      items: items,
     });
+
+    const response = getRSSResponse(rssXml);
+    return new NextResponse(response.body, { headers: response.headers });
   } catch (error) {
     console.error('RSS feed generation error:', error);
     return NextResponse.json(

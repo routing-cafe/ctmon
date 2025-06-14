@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default function Home() {
   return (
     <div className="min-h-full">
-      <div className="container px-6 pt-6 max-w-4xl">
+      <div className="container px-6 pt-6 pb-12 max-w-4xl">
         <div className="space-y-8">
           <div className="text-sm flex flex-col gap-2">
             <p>
@@ -21,6 +21,14 @@ export default function Home() {
           </div>
 
           <SearchForm />
+          <div>
+            <p className="mb-4 font-bold">RSS Feed</p>
+            <p>
+              <code className="text-sm">
+                https://transparency.cafe/api/ct/feed/[domain]
+              </code>
+            </p>
+          </div>
           <CtStats />
         </div>
       </div>
