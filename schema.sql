@@ -229,6 +229,36 @@ PARTITION BY toYYYYMM(integrated_time) -- Partition by month of integration
 ORDER BY (tree_id, log_index) -- Primary sorting order
 SETTINGS storage_policy = 's3_policy', index_granularity = 8192;
 
+CREATE TABLE rekor_log_entries_by_github_repository (
+    repository_name String CODEC(ZSTD(1)),
+    entry_uuid String,
+    tree_id LowCardinality(String),
+    log_index UInt64,
+    integrated_time DateTime
+)
+ENGINE = ReplacingMergeTree()
+ORDER BY (repository_name, entry_uuid, tree_id, log_index)
+SETTINGS storage_policy = 's3_policy', index_granularity = 8192;
+
+CREATE MATERIALIZED VIEW rekor_log_entries_by_github_repository_mv TO rekor_log_entries_by_github_repository AS
+WITH entries AS (SELECT
+    substring(base64Decode(simpleJSONExtractString(simpleJSONExtractRaw(x509_extensions, '1.3.6.1.4.1.57264.1.12'), 'value')), 3) as repository_url,
+    entry_uuid,
+    tree_id,
+    log_index,
+    integrated_time
+FROM rekor_log_entries
+WHERE x509_issuer_cn = 'sigstore-intermediate'
+  AND substring(base64Decode(simpleJSONExtractString(simpleJSONExtractRaw(x509_extensions, '1.3.6.1.4.1.57264.1.8'), 'value')), 3) = 'https://token.actions.githubusercontent.com'
+  AND startsWith(repository_url, 'https://github.com/')
+) SELECT
+    substring(repository_url, 20) AS repository_name,
+    entry_uuid,
+    tree_id,
+    log_index,
+    integrated_time
+FROM entries;
+
 CREATE MATERIALIZED VIEW ct_log_stats_by_log_id
 REFRESH EVERY 5 MINUTE
 ENGINE = Memory

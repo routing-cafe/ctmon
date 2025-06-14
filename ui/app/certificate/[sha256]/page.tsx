@@ -1,114 +1,108 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 import { Certificate } from "@/types/certificate";
+import client from "@/lib/clickhouse";
+import { notFound } from "next/navigation";
 
-export default function CertificateDetail() {
-  const params = useParams();
-  const [certificate, setCertificate] = useState<Certificate | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface CertificateDetailProps {
+  params: Promise<{ sha256: string }>;
+}
 
-  const sha256 = params.sha256 as string;
-
-  useEffect(() => {
-    if (!sha256 || sha256.length !== 64) {
-      setError("Invalid SHA-256 hash");
-      setLoading(false);
-      return;
-    }
-
-    const fetchCertificate = async () => {
-      try {
-        const response = await fetch(`/api/certificate/${sha256}`);
-        const data = await response.json();
-
-        if (response.ok) {
-          setCertificate(data);
-        } else {
-          setError(data.error || "Certificate not found");
-        }
-      } catch {
-        setError("Failed to fetch certificate details");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCertificate();
-  }, [sha256]);
-
-  if (loading) {
-    return (
-      <div
-        className="min-h-screen"
-        style={{ background: "var(--background)", color: "var(--foreground)" }}
-      >
-        <div className="container px-6 max-w-7xl">
-          <div className="flex py-8">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin">
-              </div>
-              <span className="text-lg font-medium">
-                Loading certificate details...
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+async function getCertificate(sha256: string): Promise<Certificate | null> {
+  if (!sha256 || sha256.length !== 64) {
+    return null;
   }
 
-  if (error) {
-    return (
-      <div
-        className="min-h-screen"
-        style={{ background: "var(--background)", color: "var(--foreground)" }}
-      >
-        <div className="container px-6 py-8 max-w-7xl">
-          <div className="text-center py-16">
-            <div
-              className="w-16 h-16 mb-6 rounded-full flex items-center justify-center"
-              style={{
-                background: "var(--destructive)",
-                color: "var(--destructive-foreground)",
-              }}
-            >
-              <svg
-                className="w-8 h-8"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-                />
-              </svg>
-            </div>
-            <h1
-              className="text-2xl font-semibold mb-4"
-              style={{ color: "var(--foreground)" }}
-            >
-              Certificate not found
-            </h1>
-            <p
-              className="text-lg mb-8"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              {error}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+  const sql = `
+    SELECT 
+      log_id,
+      log_index,
+      retrieval_timestamp,
+      entry_timestamp,
+      entry_type,
+      certificate_sha256,
+      tbs_certificate_sha256,
+      not_before,
+      not_after,
+      subject_dn,
+      subject_common_name,
+      subject_organization,
+      subject_organizational_unit,
+      subject_country,
+      subject_locality,
+      subject_province,
+      subject_serial_number,
+      issuer_dn,
+      issuer_common_name,
+      issuer_organization,
+      issuer_organizational_unit,
+      issuer_country,
+      issuer_locality,
+      issuer_province,
+      serial_number,
+      subject_alternative_names,
+      signature_algorithm,
+      subject_public_key_algorithm,
+      subject_public_key_length,
+      is_ca,
+      basic_constraints_path_len,
+      key_usage,
+      extended_key_usage,
+      subject_key_identifier,
+      authority_key_identifier,
+      crl_distribution_points,
+      ocsp_responders,
+      precert_issuer_key_hash,
+      precert_poison_extension_present,
+      leaf_input
+    FROM ct_log_entries 
+    WHERE (log_id, log_index) IN (
+      SELECT log_id, log_index FROM ct_log_entries_by_sha256
+      WHERE certificate_sha256 = {sha256:String}
+    )
+    AND entry_type = 'x509_entry'
+    ORDER BY not_after DESC
+    SETTINGS max_execution_time = 10, max_threads = 1, max_memory_usage = 67108864
+  `;
+
+  const resultSet = await client.query({
+    query: sql,
+    query_params: {
+      sha256: sha256,
+    },
+    format: "JSONEachRow",
+  });
+
+  const data = await resultSet.json<Certificate>();
+
+  if (data.length === 0) {
+    return null;
   }
+
+  // Use the first x509_entry for main certificate data, or fallback to first entry
+  const mainCert = data[0];
+
+  // Create logs array from all entries
+  const ct_logs = data.map((cert) => ({
+    log_id: cert.log_id,
+    log_index: cert.log_index,
+    entry_timestamp: cert.entry_timestamp,
+    entry_type: cert.entry_type,
+  }));
+
+  return {
+    ...mainCert,
+    ct_logs,
+    ct_log_count: data.length,
+  };
+}
+
+export default async function CertificateDetail(
+  { params }: CertificateDetailProps,
+) {
+  const { sha256 } = await params;
+  const certificate = await getCertificate(sha256);
 
   if (!certificate) {
-    return null;
+    notFound();
   }
 
   return (
