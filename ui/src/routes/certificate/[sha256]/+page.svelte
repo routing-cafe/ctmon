@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { PageData } from "./$types";
 
-  export let data: PageData;
+  let { data }: { data: PageData } = $props();
 
-  $: certificate = data.certificate;
+  const certificate = $derived(data.certificate);
 </script>
 
 <div class="min-h-screen" style="background: var(--background); color: var(--foreground);">

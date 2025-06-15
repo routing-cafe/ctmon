@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { PageData } from "./$types";
 
-  export let data: PageData;
+  let { data }: { data: PageData } = $props();
 
-  const { entry } = data;
+  const entry = $derived(data.entry);
 
   function formatDate(dateStr: string): string {
     try {
@@ -13,8 +13,8 @@
     }
   }
 
-  const isPgpEntry = !!entry.pgp_public_key_fingerprint;
-  const isX509Entry = !!entry.x509_certificate_sha256;
+  const isPgpEntry = $derived(!!entry.pgp_public_key_fingerprint);
+  const isX509Entry = $derived(!!entry.x509_certificate_sha256);
 </script>
 
 <svelte:head>

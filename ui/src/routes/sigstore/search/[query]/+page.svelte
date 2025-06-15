@@ -1,9 +1,13 @@
 <script lang="ts">
   import type { PageData } from "./$types";
 
-  export let data: PageData;
+  let { data }: { data: PageData } = $props();
 
-  const { query, queryType, entries, error, statistics } = data;
+  const query = $derived(data.query);
+  const queryType = $derived(data.queryType);
+  const entries = $derived(data.entries);
+  const error = $derived(data.error);
+  const statistics = $derived(data.statistics);
 
   function formatDate(dateStr: string): string {
     try {

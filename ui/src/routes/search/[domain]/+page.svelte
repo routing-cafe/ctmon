@@ -2,9 +2,13 @@
   import type { PageData } from "./$types";
   import CertificateList from "$lib/components/CertificateList.svelte";
 
-  export let data: PageData;
+  let { data }: { data: PageData } = $props();
 
-  $: ({ domain, queryType, certificates, error, statistics } = data);
+  const domain = $derived(data.domain);
+  const queryType = $derived(data.queryType);
+  const certificates = $derived(data.certificates);
+  const error = $derived(data.error);
+  const statistics = $derived(data.statistics);
 
   function getSearchTypeLabel(type: string) {
     switch (type) {

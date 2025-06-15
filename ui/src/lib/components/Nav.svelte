@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/stores";
 
-  $: path = $page.url.pathname;
+  const path = $derived($page.url.pathname);
 </script>
 
 <div class="flex flex-row gap-2">
