@@ -187,7 +187,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {#each certificate.ct_logs ?? [] as log, index}
+                  {#each certificate.ct_logs ?? [] as log (log.log_id + log.log_index)}
                     <tr class="hover:bg-opacity-50" style="color: var(--foreground);">
                       <td class="py-0.5 pr-4">
                         {log.log_id}
@@ -214,7 +214,7 @@
               <div class="overflow-x-auto">
                 <table class="font-mono text-xs leading-tight">
                   <tbody>
-                    {#each certificate.subject_alternative_names as san, index}
+                    {#each certificate.subject_alternative_names as san (san)}
                       <tr class="hover:bg-opacity-50" style="color: var(--foreground);">
                         <td class="py-0.5">
                           {san}

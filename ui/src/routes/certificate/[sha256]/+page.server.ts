@@ -78,7 +78,7 @@ async function getCertificate(sha256: string): Promise<Certificate | null> {
   const mainCert = data[0];
 
   // Create logs array from all entries
-  const ct_logs = data.map((cert: any) => ({
+  const ct_logs = data.map((cert) => ({
     log_id: cert.log_id,
     log_index: cert.log_index,
     entry_timestamp: cert.entry_timestamp,

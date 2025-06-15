@@ -13,8 +13,8 @@
     }
   }
 
-  $: isPgpEntry = !!entry.pgp_public_key_fingerprint;
-  $: isX509Entry = !!entry.x509_certificate_sha256;
+  const isPgpEntry = !!entry.pgp_public_key_fingerprint;
+  const isX509Entry = !!entry.x509_certificate_sha256;
 </script>
 
 <svelte:head>
@@ -252,7 +252,7 @@
               <div class="overflow-x-auto">
                 <table class="font-mono text-xs leading-tight">
                   <tbody>
-                    {#each entry.x509_sans as san, index}
+                    {#each entry.x509_sans as san (san)}
                       <tr class="hover:bg-opacity-50" style="color: var(--foreground);">
                         <td class="py-0.5">
                           {san}

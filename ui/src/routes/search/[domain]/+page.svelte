@@ -4,7 +4,7 @@
 
   export let data: PageData;
 
-  $: ({ domain, queryType, limit, certificates, error, statistics } = data);
+  $: ({ domain, queryType, certificates, error, statistics } = data);
 
   function getSearchTypeLabel(type: string) {
     switch (type) {

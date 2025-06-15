@@ -196,7 +196,7 @@
                 </tr>
               </thead>
               <tbody>
-                {#each entries as entry, index}
+                {#each entries as entry (entry.entry_uuid)}
                   <tr class="hover:bg-opacity-50" style="color: var(--foreground);">
                     {#if queryType !== "github_repository" && queryType !== "github_organization"}
                       <td class="py-0.5 pr-4">

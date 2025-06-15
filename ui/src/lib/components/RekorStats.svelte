@@ -20,7 +20,7 @@
         </tr>
       </thead>
       <tbody>
-        {#each stats as stat}
+        {#each stats as stat (stat.log_id)}
           <tr class="border-b border-gray-800 hover:bg-gray-900">
             <td class="p-2 font-mono">{stat.log_id}</td>
             <td class="p-2 font-mono">{stat.max_timestamp}</td>

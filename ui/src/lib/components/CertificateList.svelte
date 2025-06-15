@@ -43,7 +43,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each certificates as cert, index}
+          {#each certificates as cert (cert.certificate_sha256)}
             <tr class="hover:bg-opacity-50" style="color: var(--foreground)">
               <td class="max-w-xs truncate py-0.5 pr-4">
                 {cert.subject_common_name}
