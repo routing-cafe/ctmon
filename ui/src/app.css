@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+
+.noticia-text-regular {
+  font-family: var(--font-noticia-text), serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.noticia-text-bold {
+  font-family: var(--font-noticia-text), serif;
+  font-weight: 700;
+  font-style: normal;
+}
+
+.noticia-text-regular-italic {
+  font-family: var(--font-noticia-text), serif;
+  font-weight: 400;
+  font-style: italic;
+}
+
+.noticia-text-bold-italic {
+  font-family: var(--font-noticia-text), serif;
+  font-weight: 700;
+  font-style: italic;
+}

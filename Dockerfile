@@ -54,44 +54,41 @@ EXPOSE 8080
 CMD ["./sigstore-ingest"]
 
 # UI build stage
-FROM node:20-alpine AS ui-builder
+FROM denoland/deno:debian AS ui-builder
 
 WORKDIR /app
 
 # Copy package files
-COPY ui/package*.json ./
-
-# Install dependencies
-RUN npm ci
+COPY ui/package.json ui/deno.lock ./
 
 # Copy UI source code
 COPY ui/ ./
 
-# Build the application
-RUN npm run build
+# Install dependencies and build the UI
+RUN deno install
+RUN deno task build
 
-# Ensure public directory exists (Next.js may not create it if empty)
-RUN mkdir -p /app/public
-
-# UI runtime stage
-FROM node:20-alpine AS ui
+# Final UI runtime stage
+FROM denoland/deno:alpine AS ui
 
 WORKDIR /app
 
-# Copy built application
-COPY --from=ui-builder /app/.next/standalone ./
-COPY --from=ui-builder /app/.next/static ./.next/static
+# Copy built UI files from ui-builder stage
+COPY --from=ui-builder /app/package.json /app/package.json
+COPY --from=ui-builder /app/deno.lock /app/deno.lock
+COPY --from=ui-builder /app/node_modules /app/node_modules
+COPY --from=ui-builder /app/.deno-deploy /app/.deno-deploy
 
-# Copy public directory
-COPY --from=ui-builder /app/public ./public
+# Install dependencies
+RUN deno clean --unstable-npm-lazy-caching -e ./.deno-deploy/server.ts
 
 # Expose port
-EXPOSE 3000
+EXPOSE 8000
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV HOSTNAME=0.0.0.0
-ENV PORT=3000
+ENV HOST=0.0.0.0
+ENV PORT=8000
 
 # Run the application
-CMD ["node", "server.js"]
+CMD ["deno", "run", "-A", "./.deno-deploy/server.ts"]
