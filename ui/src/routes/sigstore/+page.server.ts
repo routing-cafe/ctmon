@@ -11,9 +11,11 @@ async function getRekorStats(): Promise<RekorStatsRow[]> {
   const sql = `
     SELECT 
       tree_id as log_id,
-      max_timestamp,
-      total
-    FROM rekor_log_stats_by_tree_id 
+      max(integrated_time) as max_timestamp,
+      count() as total
+    FROM rekor_log_entries
+    WHERE integrated_time >= now() - INTERVAL 30 DAY
+    GROUP BY tree_id 
     ORDER BY tree_id
     SETTINGS max_execution_time = 5, max_threads = 1, max_memory_usage = 134217728
   `;
