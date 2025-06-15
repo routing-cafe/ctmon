@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 .noticia-text-regular {
   font-family: var(--font-noticia-text), serif;

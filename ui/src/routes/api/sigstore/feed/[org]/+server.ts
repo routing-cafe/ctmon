@@ -1,7 +1,7 @@
-import type { RequestEvent } from '@sveltejs/kit';
-import type { SigstoreEntry } from '$lib/types/sigstore';
-import client from '$lib/server/clickhouse';
-import { generateRSSFeed, getRSSResponse, getBaseUrl, type RSSItem } from '$lib/rss';
+import type { RequestEvent } from "@sveltejs/kit";
+import type { SigstoreEntry } from "$lib/types/sigstore";
+import client from "$lib/server/clickhouse";
+import { generateRSSFeed, getRSSResponse, getBaseUrl, type RSSItem } from "$lib/rss";
 
 async function getSigstoreEntriesForOrg(org: string, limit: number = 50): Promise<SigstoreEntry[]> {
   const sql = `
@@ -32,11 +32,11 @@ async function getSigstoreEntriesForOrg(org: string, limit: number = 50): Promis
 
 function createSigstoreOrgRSSItems(entries: SigstoreEntry[]): RSSItem[] {
   const baseUrl = getBaseUrl();
-  
-  return entries.map(entry => {
+
+  return entries.map((entry) => {
     const pubDate = new Date(entry.integrated_time).toUTCString();
     const entryUrl = `${baseUrl}/sigstore/entry/${entry.entry_uuid}`;
-    
+
     const getTitle = () => {
       const repo = entry.repository_name || "Unknown Repository";
       return `Rekor: ${repo}`;
@@ -64,13 +64,13 @@ export async function GET({ params, url }: RequestEvent) {
   try {
     const { org } = params;
     if (!org) {
-      return new Response('Organization parameter is required', { status: 400 });
+      return new Response("Organization parameter is required", { status: 400 });
     }
-    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100);
 
     const entries = await getSigstoreEntriesForOrg(org, limit);
     const items = createSigstoreOrgRSSItems(entries);
-    
+
     const baseUrl = getBaseUrl();
     const feedUrl = `${baseUrl}/api/sigstore/feed/${encodeURIComponent(org)}`;
     const webUrl = `${baseUrl}/sigstore/search/${encodeURIComponent(org)}?type=github_organization`;
@@ -86,13 +86,10 @@ export async function GET({ params, url }: RequestEvent) {
     const response = getRSSResponse(rssXml);
     return new Response(response.body, { headers: response.headers });
   } catch (error) {
-    console.error('RSS feed generation error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to generate RSS feed' }),
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
+    console.error("RSS feed generation error:", error);
+    return new Response(JSON.stringify({ error: "Failed to generate RSS feed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }

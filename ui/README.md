@@ -21,11 +21,13 @@ This application runs on Deno 2 and uses SvelteKit with the Deno adapter.
 ### Getting Started
 
 Install dependencies:
+
 ```bash
 deno install
 ```
 
 Start the development server:
+
 ```bash
 deno task dev
 
@@ -54,6 +56,7 @@ deno task build
 ```
 
 Preview the production build:
+
 ```bash
 deno task preview
 ```
@@ -61,11 +64,13 @@ deno task preview
 ## Linting and Formatting
 
 Run linting and formatting checks:
+
 ```bash
 deno task lint
 ```
 
 Format code:
+
 ```bash
 deno task format
 ```

@@ -1,5 +1,5 @@
-import type { PageServerLoad } from './$types';
-import { client } from '$lib/server/clickhouse';
+import type { PageServerLoad } from "./$types";
+import { client } from "$lib/server/clickhouse";
 
 interface CtStatsRow {
   log_id: number;
@@ -26,7 +26,7 @@ async function getCtStats(): Promise<CtStatsRow[]> {
 
   const result = await client.query({
     query: sql,
-    format: 'JSONEachRow',
+    format: "JSONEachRow",
   });
 
   return result.json();
@@ -45,7 +45,7 @@ async function getRekorStats(): Promise<RekorStatsRow[]> {
 
   const result = await client.query({
     query: sql,
-    format: 'JSONEachRow',
+    format: "JSONEachRow",
   });
 
   return result.json();
@@ -53,20 +53,17 @@ async function getRekorStats(): Promise<RekorStatsRow[]> {
 
 export const load: PageServerLoad = async () => {
   try {
-    const [ctStats, rekorStats] = await Promise.all([
-      getCtStats(),
-      getRekorStats()
-    ]);
+    const [ctStats, rekorStats] = await Promise.all([getCtStats(), getRekorStats()]);
 
     return {
       ctStats,
-      rekorStats
+      rekorStats,
     };
   } catch (error) {
-    console.error('Failed to load stats:', error);
+    console.error("Failed to load stats:", error);
     return {
       ctStats: [] as CtStatsRow[],
-      rekorStats: [] as RekorStatsRow[]
+      rekorStats: [] as RekorStatsRow[],
     };
   }
 };

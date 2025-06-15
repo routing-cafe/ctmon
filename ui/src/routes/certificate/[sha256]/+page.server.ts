@@ -1,7 +1,7 @@
-import { error } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-import { client } from '$lib/server/clickhouse';
-import type { Certificate } from '$lib/types/certificate';
+import { error } from "@sveltejs/kit";
+import type { PageServerLoad } from "./$types";
+import { client } from "$lib/server/clickhouse";
+import type { Certificate } from "$lib/types/certificate";
 
 async function getCertificate(sha256: string): Promise<Certificate | null> {
   if (!sha256 || sha256.length !== 64) {
@@ -96,10 +96,10 @@ export const load: PageServerLoad = async ({ params }) => {
   const certificate = await getCertificate(params.sha256);
 
   if (!certificate) {
-    throw error(404, 'Certificate not found');
+    throw error(404, "Certificate not found");
   }
 
   return {
-    certificate
+    certificate,
   };
 };

@@ -1,38 +1,34 @@
-import type { PageServerLoad } from './$types';
-import type { SigstoreEntry, SigstoreSearchQuery } from '$lib/types/sigstore';
-import { client } from '$lib/server/clickhouse';
+import type { PageServerLoad } from "./$types";
+import type { SigstoreEntry, SigstoreSearchQuery } from "$lib/types/sigstore";
+import { client } from "$lib/server/clickhouse";
 
 interface QueryStatistics {
-	rows_read?: number;
-	bytes_read?: number;
-	elapsed?: number;
+  rows_read?: number;
+  bytes_read?: number;
+  elapsed?: number;
 }
 
 async function getSigstoreSearchResults(
-	query: string,
-	queryType: SigstoreSearchQuery["queryType"],
-	limit: number,
-): Promise<
-	{ entries: SigstoreEntry[]; error?: string; statistics?: QueryStatistics }
-> {
-	try {
-		let sql = "";
-		const queryParams: Record<string, string> = {};
+  query: string,
+  queryType: SigstoreSearchQuery["queryType"],
+  limit: number,
+): Promise<{ entries: SigstoreEntry[]; error?: string; statistics?: QueryStatistics }> {
+  try {
+    let sql = "";
+    const queryParams: Record<string, string> = {};
 
-		if (
-			queryType === "github_repository" || queryType === "github_organization"
-		) {
-			// Use the materialized view directly for GitHub searches
-			let whereClause = "";
-			if (queryType === "github_repository") {
-				whereClause = "repository_name = {query:String}";
-				queryParams.query = query;
-			} else {
-				whereClause = "repository_name LIKE {queryPattern:String}";
-				queryParams.queryPattern = `${query}/%`;
-			}
+    if (queryType === "github_repository" || queryType === "github_organization") {
+      // Use the materialized view directly for GitHub searches
+      let whereClause = "";
+      if (queryType === "github_repository") {
+        whereClause = "repository_name = {query:String}";
+        queryParams.query = query;
+      } else {
+        whereClause = "repository_name LIKE {queryPattern:String}";
+        queryParams.queryPattern = `${query}/%`;
+      }
 
-			sql = `
+      sql = `
 				SELECT 
 					tree_id,
 					log_index,
@@ -45,31 +41,31 @@ async function getSigstoreSearchResults(
 				LIMIT {limit:UInt32}
 				SETTINGS max_execution_time = 30, max_threads = 1, max_memory_usage = 268435456
 			`;
-		} else {
-			// Use the main table for other search types
-			let whereClause = "";
-			switch (queryType) {
-				case "hash":
-					whereClause = "data_hash_value = {query:String}";
-					queryParams.query = query;
-					break;
-				case "x509_san":
-					whereClause = "has(x509_sans, {query:String})";
-					queryParams.query = query;
-					break;
-				case "pgp_fingerprint":
-					whereClause = "pgp_public_key_fingerprint = {query:String}";
-					queryParams.query = query.toUpperCase().replace(/\s/g, "");
-					break;
-				case "pgp_email":
-					whereClause = "pgp_signer_email ILIKE {queryPattern:String}";
-					queryParams.queryPattern = `%${query}%`;
-					break;
-				default:
-					throw new Error(`Unsupported query type: ${queryType}`);
-			}
+    } else {
+      // Use the main table for other search types
+      let whereClause = "";
+      switch (queryType) {
+        case "hash":
+          whereClause = "data_hash_value = {query:String}";
+          queryParams.query = query;
+          break;
+        case "x509_san":
+          whereClause = "has(x509_sans, {query:String})";
+          queryParams.query = query;
+          break;
+        case "pgp_fingerprint":
+          whereClause = "pgp_public_key_fingerprint = {query:String}";
+          queryParams.query = query.toUpperCase().replace(/\s/g, "");
+          break;
+        case "pgp_email":
+          whereClause = "pgp_signer_email ILIKE {queryPattern:String}";
+          queryParams.queryPattern = `%${query}%`;
+          break;
+        default:
+          throw new Error(`Unsupported query type: ${queryType}`);
+      }
 
-			sql = `
+      sql = `
 				SELECT 
 					tree_id,
 					log_index,
@@ -119,68 +115,67 @@ async function getSigstoreSearchResults(
 				LIMIT {limit:UInt32}
 				SETTINGS max_execution_time = 30, max_threads = 1, max_memory_usage = 268435456
 			`;
-		}
+    }
 
-		const resultSet = await client.query({
-			query: sql,
-			query_params: {
-				...queryParams,
-				limit: limit,
-			},
-			format: "JSONEachRow",
-		});
+    const resultSet = await client.query({
+      query: sql,
+      query_params: {
+        ...queryParams,
+        limit: limit,
+      },
+      format: "JSONEachRow",
+    });
 
-		const entries = await resultSet.json<SigstoreEntry>();
+    const entries = await resultSet.json<SigstoreEntry>();
 
-		const headers = resultSet.response_headers;
-		const summaryHeader = headers["x-clickhouse-summary"];
-		const summaryValue = Array.isArray(summaryHeader)
-			? summaryHeader[0]
-			: summaryHeader;
+    const headers = resultSet.response_headers;
+    const summaryHeader = headers["x-clickhouse-summary"];
+    const summaryValue = Array.isArray(summaryHeader) ? summaryHeader[0] : summaryHeader;
 
-		let statistics: QueryStatistics | undefined = undefined;
+    let statistics: QueryStatistics | undefined = undefined;
 
-		if (summaryValue) {
-			try {
-				const summary = JSON.parse(summaryValue);
-				statistics = {
-					elapsed: parseFloat(summary.elapsed_ns || "0") / 1000000000, // Convert nanoseconds to seconds
-					rows_read: parseInt(summary.read_rows || "0"),
-					bytes_read: parseInt(summary.read_bytes || "0"),
-				};
-			} catch (error) {
-				console.error("Failed to parse ClickHouse summary:", error);
-			}
-		}
+    if (summaryValue) {
+      try {
+        const summary = JSON.parse(summaryValue);
+        statistics = {
+          elapsed: parseFloat(summary.elapsed_ns || "0") / 1000000000, // Convert nanoseconds to seconds
+          rows_read: parseInt(summary.read_rows || "0"),
+          bytes_read: parseInt(summary.read_bytes || "0"),
+        };
+      } catch (error) {
+        console.error("Failed to parse ClickHouse summary:", error);
+      }
+    }
 
-		return { entries, statistics };
-	} catch (error) {
-		console.error("Sigstore search error:", error);
-		return {
-			entries: [],
-			error: "Failed to perform search",
-			statistics: undefined,
-		};
-	}
+    return { entries, statistics };
+  } catch (error) {
+    console.error("Sigstore search error:", error);
+    return {
+      entries: [],
+      error: "Failed to perform search",
+      statistics: undefined,
+    };
+  }
 }
 
 export const load: PageServerLoad = async ({ params, url }) => {
-	const decodedQuery = decodeURIComponent(params.query);
-	const queryType = (url.searchParams.get('type') || 'x509_san') as SigstoreSearchQuery['queryType'];
-	const limit = parseInt(url.searchParams.get('limit') || '100', 10);
+  const decodedQuery = decodeURIComponent(params.query);
+  const queryType = (url.searchParams.get("type") ||
+    "x509_san") as SigstoreSearchQuery["queryType"];
+  const limit = parseInt(url.searchParams.get("limit") || "100", 10);
 
-	const { entries, error, statistics } = await getSigstoreSearchResults(
-		decodedQuery,
-		queryType,
-		limit,
-	);
+  const { entries, error, statistics } = await getSigstoreSearchResults(
+    decodedQuery,
+    queryType,
+    limit,
+  );
 
-	return {
-		query: decodedQuery,
-		queryType,
-		limit,
-		entries,
-		error,
-		statistics
-	};
+  return {
+    query: decodedQuery,
+    queryType,
+    limit,
+    entries,
+    error,
+    statistics,
+  };
 };

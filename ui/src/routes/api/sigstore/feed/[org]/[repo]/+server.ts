@@ -1,9 +1,13 @@
-import type { RequestEvent } from '@sveltejs/kit';
-import type { SigstoreEntry } from '$lib/types/sigstore';
-import client from '$lib/server/clickhouse';
-import { generateRSSFeed, getRSSResponse, getBaseUrl, type RSSItem } from '$lib/rss';
+import type { RequestEvent } from "@sveltejs/kit";
+import type { SigstoreEntry } from "$lib/types/sigstore";
+import client from "$lib/server/clickhouse";
+import { generateRSSFeed, getRSSResponse, getBaseUrl, type RSSItem } from "$lib/rss";
 
-async function getSigstoreEntriesForRepo(org: string, repo: string, limit: number = 50): Promise<SigstoreEntry[]> {
+async function getSigstoreEntriesForRepo(
+  org: string,
+  repo: string,
+  limit: number = 50,
+): Promise<SigstoreEntry[]> {
   const repositoryName = `${org}/${repo}`;
   const sql = `
     SELECT 
@@ -33,11 +37,11 @@ async function getSigstoreEntriesForRepo(org: string, repo: string, limit: numbe
 
 function createSigstoreRepoRSSItems(entries: SigstoreEntry[], repositoryName: string): RSSItem[] {
   const baseUrl = getBaseUrl();
-  
-  return entries.map(entry => {
+
+  return entries.map((entry) => {
     const pubDate = new Date(entry.integrated_time).toUTCString();
     const entryUrl = `${baseUrl}/sigstore/entry/${entry.entry_uuid}`;
-    
+
     const getTitle = () => {
       return `Rekor: ${repositoryName}`;
     };
@@ -64,14 +68,14 @@ export async function GET({ params, url }: RequestEvent) {
   try {
     const { org, repo } = params;
     if (!org || !repo) {
-      return new Response('Organization and repository parameters are required', { status: 400 });
+      return new Response("Organization and repository parameters are required", { status: 400 });
     }
-    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100);
 
     const entries = await getSigstoreEntriesForRepo(org, repo, limit);
     const repositoryName = `${org}/${repo}`;
     const items = createSigstoreRepoRSSItems(entries, repositoryName);
-    
+
     const baseUrl = getBaseUrl();
     const feedUrl = `${baseUrl}/api/sigstore/feed/${org}/${repo}`;
     const webUrl = `${baseUrl}/sigstore/search/${encodeURIComponent(repositoryName)}?type=github_repository`;
@@ -87,13 +91,10 @@ export async function GET({ params, url }: RequestEvent) {
     const response = getRSSResponse(rssXml);
     return new Response(response.body, { headers: response.headers });
   } catch (error) {
-    console.error('RSS feed generation error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to generate RSS feed' }),
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
+    console.error("RSS feed generation error:", error);
+    return new Response(JSON.stringify({ error: "Failed to generate RSS feed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }

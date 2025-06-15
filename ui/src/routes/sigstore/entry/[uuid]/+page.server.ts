@@ -1,14 +1,14 @@
-import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
-import type { SigstoreEntry } from '$lib/types/sigstore';
-import { client } from '$lib/server/clickhouse';
+import type { PageServerLoad } from "./$types";
+import { error } from "@sveltejs/kit";
+import type { SigstoreEntry } from "$lib/types/sigstore";
+import { client } from "$lib/server/clickhouse";
 
 async function getSigstoreEntry(uuid: string): Promise<SigstoreEntry | null> {
-	if (!uuid) {
-		return null;
-	}
+  if (!uuid) {
+    return null;
+  }
 
-	const sql = `
+  const sql = `
 		SELECT 
 			tree_id,
 			log_index,
@@ -58,31 +58,31 @@ async function getSigstoreEntry(uuid: string): Promise<SigstoreEntry | null> {
 		SETTINGS max_execution_time = 10, max_threads = 1, max_memory_usage = 134217728
 	`;
 
-	const resultSet = await client.query({
-		query: sql,
-		query_params: {
-			uuid: uuid,
-		},
-		format: "JSONEachRow",
-	});
+  const resultSet = await client.query({
+    query: sql,
+    query_params: {
+      uuid: uuid,
+    },
+    format: "JSONEachRow",
+  });
 
-	const entries = await resultSet.json<SigstoreEntry>();
+  const entries = await resultSet.json<SigstoreEntry>();
 
-	if (entries.length === 0) {
-		return null;
-	}
+  if (entries.length === 0) {
+    return null;
+  }
 
-	return entries[0];
+  return entries[0];
 }
 
 export const load: PageServerLoad = async ({ params }) => {
-	const entry = await getSigstoreEntry(params.uuid);
+  const entry = await getSigstoreEntry(params.uuid);
 
-	if (!entry) {
-		throw error(404, 'Sigstore entry not found');
-	}
+  if (!entry) {
+    throw error(404, "Sigstore entry not found");
+  }
 
-	return {
-		entry
-	};
+  return {
+    entry,
+  };
 };

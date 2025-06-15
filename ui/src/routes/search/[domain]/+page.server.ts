@@ -1,6 +1,6 @@
-import type { PageServerLoad } from './$types';
-import { client } from '$lib/server/clickhouse';
-import type { Certificate, SearchQuery } from '$lib/types/certificate';
+import type { PageServerLoad } from "./$types";
+import { client } from "$lib/server/clickhouse";
+import type { Certificate, SearchQuery } from "$lib/types/certificate";
 
 interface QueryStatistics {
   rows_read?: number;
@@ -12,9 +12,7 @@ async function getSearchResults(
   query: string,
   queryType: SearchQuery["queryType"],
   limit: number,
-): Promise<
-  { certificates: Certificate[]; error?: string; statistics?: QueryStatistics }
-> {
+): Promise<{ certificates: Certificate[]; error?: string; statistics?: QueryStatistics }> {
   try {
     let whereClause = "";
     const queryParam = query;
@@ -91,10 +89,7 @@ async function getSearchResults(
     const rawData = rows as Certificate[];
 
     // Merge entries with the same certificate_sha256 and count distinct log entries
-    const certMap = new Map<
-      string,
-      { cert: Certificate; logEntries: Set<string> }
-    >();
+    const certMap = new Map<string, { cert: Certificate; logEntries: Set<string> }>();
 
     for (const current of rawData) {
       const sha256 = current.certificate_sha256;
@@ -122,16 +117,12 @@ async function getSearchResults(
       ct_log_count: logEntries.size,
     }));
     data.sort(
-      (a, b) =>
-        new Date(b.entry_timestamp).getTime() -
-        new Date(a.entry_timestamp).getTime(),
+      (a, b) => new Date(b.entry_timestamp).getTime() - new Date(a.entry_timestamp).getTime(),
     );
 
     const headers = resultSet.response_headers;
     const summaryHeader = headers["x-clickhouse-summary"];
-    const summaryValue = Array.isArray(summaryHeader)
-      ? summaryHeader[0]
-      : summaryHeader;
+    const summaryValue = Array.isArray(summaryHeader) ? summaryHeader[0] : summaryHeader;
 
     let statistics: QueryStatistics | undefined = undefined;
 
@@ -161,14 +152,10 @@ async function getSearchResults(
 
 export const load: PageServerLoad = async ({ params, url }) => {
   const domain = decodeURIComponent(params.domain);
-  const queryType = (url.searchParams.get('type') as SearchQuery["queryType"]) || "domain";
-  const limit = parseInt(url.searchParams.get('limit') || "100");
+  const queryType = (url.searchParams.get("type") as SearchQuery["queryType"]) || "domain";
+  const limit = parseInt(url.searchParams.get("limit") || "100");
 
-  const { certificates, error, statistics } = await getSearchResults(
-    domain,
-    queryType,
-    limit,
-  );
+  const { certificates, error, statistics } = await getSearchResults(domain, queryType, limit);
 
   return {
     domain,
@@ -176,6 +163,6 @@ export const load: PageServerLoad = async ({ params, url }) => {
     limit,
     certificates,
     error,
-    statistics
+    statistics,
   };
 };

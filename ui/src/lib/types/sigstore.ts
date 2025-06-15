@@ -14,7 +14,7 @@ export interface SigstoreEntry {
   signature_url: string;
   public_key_url: string;
   repository_name?: string;
-  
+
   // X509 Certificate Fields
   x509_certificate_sha256: string;
   x509_subject_dn: string;
@@ -35,7 +35,7 @@ export interface SigstoreEntry {
   x509_is_ca: number;
   x509_key_usage: string[];
   x509_extended_key_usage: string[];
-  
+
   // PGP Fields
   pgp_signature_hash: string;
   pgp_public_key_fingerprint: string;
@@ -50,6 +50,13 @@ export interface SigstoreEntry {
 
 export interface SigstoreSearchQuery {
   query: string;
-  queryType: "hash" | "x509_san" | "pgp_fingerprint" | "pgp_email" | "entry_uuid" | "github_repository" | "github_organization";
+  queryType:
+    | "hash"
+    | "x509_san"
+    | "pgp_fingerprint"
+    | "pgp_email"
+    | "entry_uuid"
+    | "github_repository"
+    | "github_organization";
   limit?: number;
 }

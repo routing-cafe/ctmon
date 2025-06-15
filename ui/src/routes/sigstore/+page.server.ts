@@ -1,5 +1,5 @@
-import type { PageServerLoad } from './$types';
-import { client } from '$lib/server/clickhouse';
+import type { PageServerLoad } from "./$types";
+import { client } from "$lib/server/clickhouse";
 
 interface RekorStatsRow {
   log_id: number;
@@ -20,7 +20,7 @@ async function getRekorStats(): Promise<RekorStatsRow[]> {
 
   const result = await client.query({
     query: sql,
-    format: 'JSONEachRow',
+    format: "JSONEachRow",
   });
 
   return result.json();
@@ -31,12 +31,12 @@ export const load: PageServerLoad = async () => {
     const rekorStats = await getRekorStats();
 
     return {
-      rekorStats
+      rekorStats,
     };
   } catch (error) {
-    console.error('Failed to load Rekor stats:', error);
+    console.error("Failed to load Rekor stats:", error);
     return {
-      rekorStats: [] as RekorStatsRow[]
+      rekorStats: [] as RekorStatsRow[],
     };
   }
 };
