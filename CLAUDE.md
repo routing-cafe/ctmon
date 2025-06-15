@@ -9,13 +9,13 @@ transparency.cafe is a multi-component system for ingesting, storing, and analyz
 - **Certificate Transparency Logs**: Ingests CT log entries from public CT logs
 - **Sigstore Data**: Ingests entries from the Rekor transparency log
 - **ClickHouse Database**: Stores all transparency data with optimized schemas
-- **Next.js Web UI**: Provides search and analysis interface
+- **SvelteKit Web UI**: Provides search and analysis interface
 
 ### Component Structure
 
 - `cmd/ctmon-ingest/`: Go binary for ingesting CT log entries
 - `cmd/sigstore-ingest/`: Go binary for ingesting Sigstore/Rekor entries  
-- `ui/`: Next.js frontend application
+- `ui/`: SvelteKit frontend application
 - `schema.sql`: ClickHouse database schema definitions
 
 ## Build and Development Commands
@@ -38,20 +38,20 @@ go build -o sigstore-ingest ./cmd/sigstore-ingest
 ### Frontend (UI)
 ```bash
 cd ui/
-npm install
-npm run dev      # Development server
-npm run build    # Production build
-npm run lint     # ESLint checking
+deno install        # Install dependencies
+deno task dev       # Development server
+deno task build     # Production build
+deno task lint      # ESLint and Prettier checking
 ```
 
 ## Database Connection
 
-Both Go ingesters and the Next.js UI connect to ClickHouse using environment variables:
+Both Go ingesters and the SvelteKit UI connect to ClickHouse using environment variables:
 
 ```bash
 CLICKHOUSE_HOST=localhost
 CLICKHOUSE_PORT=9000    # Native protocol for Go
-CLICKHOUSE_PORT=8123    # HTTP for Next.js
+CLICKHOUSE_PORT=8123    # HTTP for SvelteKit
 CLICKHOUSE_USER=default
 CLICKHOUSE_PASSWORD=
 CLICKHOUSE_DATABASE=default
@@ -79,7 +79,8 @@ CLICKHOUSE_DATABASE=default
 - `rekor_log_entries`: Sigstore/Rekor entries with comprehensive metadata extraction
 
 ### Web UI (`ui/`)
-- Next.js 15 application with TypeScript
+- SvelteKit application with TypeScript
 - Uses ClickHouse client for database queries
 - Certificate search and analysis interfaces
 - Tailwind CSS for styling
+- Runs on Deno runtime

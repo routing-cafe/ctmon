@@ -27,21 +27,20 @@ jobs:
     - name: Run Go tests
       run: go test -v ./...
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
+    - name: Set up Deno
+      uses: denoland/setup-deno@v2
       with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: ui/package-lock.json
+        deno-version: v2.x
+        cache: true
 
     - name: Install UI dependencies
-      run: cd ui && npm ci
+      run: cd ui && deno install
 
     - name: Run UI linting
-      run: cd ui && npm run lint
+      run: cd ui && deno task lint
 
     - name: Build UI
-      run: cd ui && npm run build
+      run: cd ui && deno task build
 
   build-and-push-ctmon-ingest:
     needs: test
